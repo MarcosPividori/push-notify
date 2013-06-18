@@ -4,7 +4,7 @@
              QuasiQuotes, MultiParamTypeClasses, GeneralizedNewtypeDeriving, FlexibleContexts, GADTs #-}
 
 -- | This Module define the main data types for sending Push Notifications through Google Cloud Messaging.
-module Types (GCMmessage(..),GCMresult(..),MRes(..),RegId) where
+module Types (GCMmessage(..),GCMresult(..),MRes(..),RegId,Notif_key,Notif_key_name) where
 
 import Data.Default
 import Data.Aeson.Types
@@ -16,8 +16,8 @@ type Notif_key_name = String
 -- | 'GCMmessage' represents a message to be sent through GCM.
 data GCMmessage = GCMmessage
     {   registration_ids :: Maybe [RegId] 
-    ,   notification_key :: Maybe [Notif_key]
-    ,   notification_key_name :: Maybe [Notif_key_name]
+    ,   notification_key :: Maybe Notif_key
+    ,   notification_key_name :: Maybe Notif_key_name
     ,   collapse_key :: String
     ,   data_object :: Maybe Object
     ,   delay_while_idle :: Bool

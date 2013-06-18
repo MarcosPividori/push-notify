@@ -8,6 +8,7 @@ module Send (sendGCM) where
 
 import Types
 import ApiKey
+import Constants
              
 import Network.HTTP.Conduit
     (http, parseUrl, withManager, RequestBody (RequestBodyLBS), requestBody, 
@@ -27,42 +28,13 @@ import Control.Retry
 
 retrySettingsGCM = RetrySettings {	 
     backoff = True
-,   baseDelay = 100
+,   baseDelay = 1000
 }
 
-gcmToJson :: GCMmessage -> IO Value
-gcmToJson msg = return $ object $ gcmToObject msg
-
-gcmToObject :: GCMmessage -> [Pair]
-gcmToObject msg = let
-                        el1 = case registration_ids msg of
-                                Just regIds ->  [("registration_ids" .= (regIds :: [String] ))]
-                                Nothing ->  [] -- to be continued ...
-                        el2 = case collapse_key msg of
-                                []  -> []
-                                xs  -> [("collapse_key" .= xs)]
-                        el3 = case data_object msg of 
-                                Nothing  -> []
-                                Just dat -> [("data" .= dat)]
-                        el4 = case delay_while_idle msg of
-                                True    -> [("delay_while_idle" .= True)]
-                                False   -> []
-                        el5 = case time_to_live msg of 
-                                Nothing -> []
-                                Just t  -> [("time_to_live" .= t)]
-                        el6 = case restricted_package_name msg of
-                                []  ->  []
-                                xs  ->  [("restricted_package_name" .= xs)]
-                        el7 = case dry_run msg of
-                                True    -> [("dry_run" .= True)]
-                                False   -> []
-                  in 
-                  el1 ++ el2 ++ el3 ++ el4 ++ el5 ++ el6 ++ el7
-
--- |'sendGCM' sends the message through a GCM Server.
+-- | 'sendGCM' sends the message through a GCM Server.
 sendGCM :: GCMmessage -> Int -> IO GCMresult
 sendGCM msg numRet = withManager $ \manager -> do
-    value <- liftIO $ makeValue msg (registration_ids msg)
+    value <- liftIO $ gcmToJson msg
     let valueBS = encode value
     req' <- liftIO $ parseUrl "https://android.googleapis.com/gcm/send"
     let req = req' {
@@ -78,13 +50,41 @@ sendGCM msg numRet = withManager $ \manager -> do
     resValue <- body $$+- sinkParser json
     liftIO $ handleSucessfulResponse resValue msg
 
--- 'makeValue' creates the block to be sent.
-makeValue :: GCMmessage -> Maybe [RegId] -> IO Value
-makeValue msg (Just regIds) = do
-                        dat <-  (gcmToJson msg)
-                        return $ object [
-                              ("registration_ids" .= (regIds :: [String] ))
-                            , ("data" .= dat )]
+-- | 'gcmToJson' creates the block to be sent.
+gcmToJson :: GCMmessage -> IO Value
+gcmToJson msg = return $ object $ gcmToObject msg
+
+gcmToObject :: GCMmessage -> [Pair]
+gcmToObject msg = let
+                        el1 = case registration_ids msg of
+                                Just regIds ->  [("registration_ids" .= (regIds :: [String] ))]
+                                Nothing     ->  []
+                        el2 = case notification_key msg of
+                                Just key ->  [("notification_key" .= (key :: String ))]
+                                Nothing  ->  []
+                        el3 = case notification_key_name msg of
+                                Just key_name   ->  [("notification_key_name" .= (key_name :: String))]
+                                Nothing         ->  []
+                        el4 = case collapse_key msg of
+                                []  -> []
+                                xs  -> [("collapse_key" .= xs)]
+                        el5 = case data_object msg of 
+                                Nothing  -> []
+                                Just dat -> [("data" .= dat)]
+                        el6 = case delay_while_idle msg of
+                                True    -> [("delay_while_idle" .= True)]
+                                False   -> []
+                        el7 = case time_to_live msg of 
+                                Nothing -> []
+                                Just t  -> [("time_to_live" .= t)]
+                        el8 = case restricted_package_name msg of
+                                []  ->  []
+                                xs  ->  [("restricted_package_name" .= xs)]
+                        el9 = case dry_run msg of
+                                True    -> [("dry_run" .= True)]
+                                False   -> []
+                  in
+                  el1 ++ el2 ++ el3 ++ el4 ++ el5 ++ el6 ++ el7 ++ el8 ++ el9
 
 getValue :: FromJSON b => String -> Map Text Value -> Maybe b
 getValue xs x = do
