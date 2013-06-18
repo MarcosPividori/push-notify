@@ -4,9 +4,11 @@ GSoC-Communicating-with-mobile-devices
 This is a project as part of the Google Summer of Code program for this summer 2013.
 
 Student: Marcos Pividori
+ 
 Mentor: Michael Snoyman
+ 
 Organization: Haskell.org
-
+ 
 Abstract
 
 The aim of this project is to develop a server-side library in Haskell 
