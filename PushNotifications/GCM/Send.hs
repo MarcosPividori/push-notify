@@ -36,7 +36,7 @@ sendGCM :: GCMmessage -> Int -> IO GCMresult
 sendGCM msg numRet = withManager $ \manager -> do
     value <- liftIO $ gcmToJson msg
     let valueBS = encode value
-    req' <- liftIO $ parseUrl "https://android.googleapis.com/gcm/send"
+    req' <- liftIO $ parseUrl cPOST_URL
     let req = req' {
                    method = "POST",
                    requestBody = RequestBodyLBS valueBS,
@@ -57,31 +57,31 @@ gcmToJson msg = return $ object $ gcmToObject msg
 gcmToObject :: GCMmessage -> [Pair]
 gcmToObject msg = let
                         el1 = case registration_ids msg of
-                                Just regIds ->  [("registration_ids" .= (regIds :: [String] ))]
+                                Just regIds ->  [(pack cREGISTRATION_IDS .= (regIds :: [String] ))]
                                 Nothing     ->  []
                         el2 = case notification_key msg of
-                                Just key ->  [("notification_key" .= (key :: String ))]
+                                Just key ->  [(pack cNOTIFICATION_KEY .= (key :: String ))]
                                 Nothing  ->  []
                         el3 = case notification_key_name msg of
-                                Just key_name   ->  [("notification_key_name" .= (key_name :: String))]
+                                Just key_name   ->  [(pack cNOTIFICATION_KEY_NAME .= (key_name :: String))]
                                 Nothing         ->  []
                         el4 = case collapse_key msg of
                                 []  -> []
-                                xs  -> [("collapse_key" .= xs)]
+                                xs  -> [(pack cCOLLAPSE_KEY .= xs)]
                         el5 = case data_object msg of 
                                 Nothing  -> []
-                                Just dat -> [("data" .= dat)]
+                                Just dat -> [(pack cDATA .= dat)]
                         el6 = case delay_while_idle msg of
-                                True    -> [("delay_while_idle" .= True)]
+                                True    -> [(pack cDELAY_WHILE_IDLE .= True)]
                                 False   -> []
                         el7 = case time_to_live msg of 
                                 Nothing -> []
-                                Just t  -> [("time_to_live" .= t)]
+                                Just t  -> [(pack cTIME_TO_LIVE .= t)]
                         el8 = case restricted_package_name msg of
                                 []  ->  []
-                                xs  ->  [("restricted_package_name" .= xs)]
+                                xs  ->  [(pack cRESTRICTED_PACKAGE_NAME .= xs)]
                         el9 = case dry_run msg of
-                                True    -> [("dry_run" .= True)]
+                                True    -> [(pack cDRY_RUN .= True)]
                                 False   -> []
                   in
                   el1 ++ el2 ++ el3 ++ el4 ++ el5 ++ el6 ++ el7 ++ el8 ++ el9
@@ -95,7 +95,7 @@ getValue xs x = do
 handleSucessfulResponse :: Value -> GCMmessage -> IO GCMresult
 handleSucessfulResponse resValue msg =
                     case (parseMaybe parseJSON resValue) :: Maybe (Map Text Value) of
-                        Just a -> let list  = case (getValue "results" a) :: Maybe [(Map Text Value)] of
+                        Just a -> let list  = case (getValue cRESULTS a) :: Maybe [(Map Text Value)] of
                                                 Just xs ->  xs
                                                 Nothing ->  []
                                       mapMsg= case registration_ids msg of
@@ -103,29 +103,29 @@ handleSucessfulResponse resValue msg =
                                                 Nothing -> []
                                   in
                                   return $ def {
-                                      multicast_id  = (getValue "multicast_id" a) :: Maybe Integer
-                                  ,   success       = (getValue "success" a) :: Maybe Int
-                                  ,   failure       = (getValue "failure" a) :: Maybe Int
-                                  ,   canonical_ids = (getValue "canonical_ids" a) :: Maybe Int
+                                      multicast_id  = (getValue cMULTICAST_ID a) :: Maybe Integer
+                                  ,   success       = (getValue cSUCESS a) :: Maybe Int
+                                  ,   failure       = (getValue cFAILURE a) :: Maybe Int
+                                  ,   canonical_ids = (getValue cCANONICAL_IDS a) :: Maybe Int
                                   ,   results       = let
-                                                        f x = case (getValue "message_id" x) :: Maybe String of
+                                                        f x = case (getValue cMESSAGE_ID x) :: Maybe String of
                                                                 Just xs ->  GCMOk xs
-                                                                Nothing ->  case (getValue "error" x) :: Maybe String of
+                                                                Nothing ->  case (getValue cERROR x) :: Maybe String of
                                                                                 Just y  -> GCMError y
                                                                                 Nothing -> GCMError ""
                                                       in map f list
                                   ,   newRegids     = let
-                                                        g (x,list') = case (getValue "registration_id" list') :: Maybe String of
+                                                        g (x,list') = case (getValue cREGISTRATION_ID list') :: Maybe String of
                                                                             Just xs ->  (x,xs)
                                                                             Nothing ->  (x,[])
                                                       in filter (\(x,y) -> y /= []) $ map g mapMsg
                                   ,   unRegistered  = let
-                                                        g (x,list') = case (getValue "error" list') :: Maybe String of
+                                                        g (x,list') = case (getValue cERROR list') :: Maybe String of
                                                                             Just "NotRegistered" ->  True
                                                                             _                    ->  False
                                                       in map fst $ filter g mapMsg
                                   ,   toReSend      = let
-                                                        g (x,list') = case (getValue "error" list') :: Maybe String of
+                                                        g (x,list') = case (getValue cERROR list') :: Maybe String of
                                                                             Just "Unavailable"  ->  True
                                                                             _                   ->  False
                                                       in map fst $ filter g mapMsg
