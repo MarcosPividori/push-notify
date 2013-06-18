@@ -6,6 +6,9 @@ module Constants where
 cPOST_URL :: String
 cPOST_URL = "https://android.googleapis.com/gcm/send"
 
+cPOST_NOTIFICATION_URL :: String
+cPOST_NOTIFICATION_URL = "https://android.googleapis.com/gcm/notification"
+
 -- Fields for JSON object in requests to GCM servers.
 cREGISTRATION_IDS :: String
 cREGISTRATION_IDS = "registration_ids"
@@ -59,3 +62,4 @@ cREGISTRATION_ID = "registration_id"
 
 cERROR :: String
 cERROR = "error"
+
