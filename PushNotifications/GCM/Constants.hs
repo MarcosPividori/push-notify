@@ -10,6 +10,7 @@ cPOST_NOTIFICATION_URL :: String
 cPOST_NOTIFICATION_URL = "https://android.googleapis.com/gcm/notification"
 
 -- Fields for JSON object in requests to GCM servers.
+
 cREGISTRATION_IDS :: String
 cREGISTRATION_IDS = "registration_ids"
 
@@ -37,6 +38,7 @@ cRESTRICTED_PACKAGE_NAME = "restricted_package_name"
 cDRY_RUN :: String
 cDRY_RUN = "dry_run"
 
+
 -- Fields for a JSON response to a sucessful request.
 
 cMULTICAST_ID :: String
@@ -62,4 +64,8 @@ cREGISTRATION_ID = "registration_id"
 
 cERROR :: String
 cERROR = "error"
+
+-- More constants
+
+cRETRY_AFTER = "Retry-After"
 

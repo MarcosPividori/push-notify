@@ -15,8 +15,8 @@ type Notif_key_name = String
 
 -- | 'GCMmessage' represents a message to be sent through GCM.
 data GCMmessage = GCMmessage
-    {   registration_ids :: Maybe [RegId] 
-    ,   notification_key :: Maybe Notif_key
+    {   registration_ids :: Maybe [RegId]
+    ,   notification_key :: Maybe Notif_key -- Need to be continued, this is a new option added in the Google IO 2013
     ,   notification_key_name :: Maybe Notif_key_name
     ,   collapse_key :: String
     ,   data_object :: Maybe Object
@@ -52,7 +52,8 @@ data GCMresult = GCMresult
     ,   results :: [MRes]
     ,   newRegids :: [(RegId,RegId)] -- ^ regIds that need to be replaced.
     ,   unRegistered :: [RegId] -- ^ regIds that need to be removed.
-    ,   toReSend :: [RegId] -- ^ regIds that I need to resend the message to.
+    ,   toReSend :: [RegId] -- ^ regIds that I need to resend the message to, 
+                            -- because there was an internal problem in the GCM servers.
     } deriving Show
 
 instance Default GCMresult where

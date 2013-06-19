@@ -20,11 +20,13 @@ import Data.Conduit             (($$+-))
 import Data.Conduit.Attoparsec  (sinkParser)
 import Control.Monad.IO.Class   (liftIO)
 import Data.Aeson
-import Data.Aeson.Types
+import Data.Aeson.Types         
 import Data.Map                 (Map,lookup)
 import Data.Text                (Text, pack)
 import Data.String
 import Control.Retry
+import Control.Concurrent
+import qualified Data.ByteString.Char8 as B
 
 retrySettingsGCM = RetrySettings {	 
     backoff = True
@@ -44,11 +46,29 @@ sendGCM msg numRet = withManager $ \manager -> do
                         [ ("Content-Type", "application/json"),
                           ("Authorization", fromString apiKey) -- API Key. (provided by Google)
                         ]}
-    Response status version headers body <- retrying (retrySettingsGCM{numRetries = limitedRetries numRet})
-                                                     (\x -> (statusCode $ responseStatus x) >= 500) $ http req manager
-                                                     -- If internal error in the GCM server I will retry.
-    resValue <- body $$+- sinkParser json
-    liftIO $ handleSucessfulResponse resValue msg
+    retry req manager numRet msg
+
+-- 'retry' try numRet attemps to send the messages.
+retry req manager numRet msg = do
+        Response status version headers body <- retrying (retrySettingsGCM{numRetries = limitedRetries numRet}) f $ http req manager
+        if (statusCode $ status) >= 500
+            then
+                case Prelude.lookup (fromString cRETRY_AFTER) headers of
+                    Nothing ->  liftIO $ fail "Persistent internal error after retrying"
+                    Just t  ->  do
+                                    let time = (read (B.unpack t)) :: Int -- I need to check this line
+                                    liftIO $ threadDelay (time*1000000) -- from seconds to microseconds
+                                    retry req manager (numRet-1) msg 
+            else
+                do
+                    resValue <- body $$+- sinkParser json
+                    liftIO $ handleSucessfulResponse resValue msg
+        
+            where f x = if (statusCode $ responseStatus x) >= 500
+                            then case Prelude.lookup (fromString cRETRY_AFTER) (responseHeaders x) of
+                                    Nothing ->  True   -- Internal Server error, and don't specify a time to wait
+                                    Just t  ->  False  -- Internal Server error, and specify a time to wait
+                            else False
 
 -- | 'gcmToJson' creates the block to be sent.
 gcmToJson :: GCMmessage -> IO Value
@@ -68,7 +88,7 @@ gcmToObject msg = let
                         el4 = case collapse_key msg of
                                 []  -> []
                                 xs  -> [(pack cCOLLAPSE_KEY .= xs)]
-                        el5 = case data_object msg of 
+                        el5 = case data_object msg of
                                 Nothing  -> []
                                 Just dat -> [(pack cDATA .= dat)]
                         el6 = case delay_while_idle msg of
