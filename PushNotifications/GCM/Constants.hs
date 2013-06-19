@@ -65,7 +65,14 @@ cREGISTRATION_ID = "registration_id"
 cERROR :: String
 cERROR = "error"
 
+cNOT_REGISTERED :: String
+cNOT_REGISTERED = "NotRegistered"
+
+cUNAVAILABLE :: String
+cUNAVAILABLE = "Unavailable"
+
 -- More constants
 
+cRETRY_AFTER :: String
 cRETRY_AFTER = "Retry-After"
 

@@ -50,7 +50,8 @@ sendGCM msg numRet = withManager $ \manager -> do
 
 -- 'retry' try numRet attemps to send the messages.
 retry req manager numRet msg = do
-        Response status version headers body <- retrying (retrySettingsGCM{numRetries = limitedRetries numRet}) f $ http req manager
+        Response status version headers body <- retrying (
+                                retrySettingsGCM{numRetries = limitedRetries numRet}) f $ http req manager
         if (statusCode $ status) >= 500
             then
                 case Prelude.lookup (fromString cRETRY_AFTER) headers of
@@ -66,8 +67,8 @@ retry req manager numRet msg = do
         
             where f x = if (statusCode $ responseStatus x) >= 500
                             then case Prelude.lookup (fromString cRETRY_AFTER) (responseHeaders x) of
-                                    Nothing ->  True   -- Internal Server error, and don't specify a time to wait
-                                    Just t  ->  False  -- Internal Server error, and specify a time to wait
+                                    Nothing ->  True  -- Internal Server error, and don't specify a time to wait
+                                    Just t  ->  False -- Internal Server error, and specify a time to wait
                             else False
 
 -- | 'gcmToJson' creates the block to be sent.
@@ -114,40 +115,40 @@ getValue xs x = do
 -- | 'handleSucessfullResponse' analyzes the server response and generates useful information.
 handleSucessfulResponse :: Value -> GCMmessage -> IO GCMresult
 handleSucessfulResponse resValue msg =
-                    case (parseMaybe parseJSON resValue) :: Maybe (Map Text Value) of
-                        Just a -> let list  = case (getValue cRESULTS a) :: Maybe [(Map Text Value)] of
-                                                Just xs ->  xs
-                                                Nothing ->  []
-                                      mapMsg= case registration_ids msg of
+            case (parseMaybe parseJSON resValue) :: Maybe (Map Text Value) of
+                Just a -> let list  = case (getValue cRESULTS a) :: Maybe [(Map Text Value)] of
+                                        Just xs ->  xs
+                                        Nothing ->  []
+                              mapMsg= case registration_ids msg of
                                                 Just xs -> zip xs list
                                                 Nothing -> []
-                                  in
-                                  return $ def {
-                                      multicast_id  = (getValue cMULTICAST_ID a) :: Maybe Integer
-                                  ,   success       = (getValue cSUCESS a) :: Maybe Int
-                                  ,   failure       = (getValue cFAILURE a) :: Maybe Int
-                                  ,   canonical_ids = (getValue cCANONICAL_IDS a) :: Maybe Int
-                                  ,   results       = let
-                                                        f x = case (getValue cMESSAGE_ID x) :: Maybe String of
-                                                                Just xs ->  GCMOk xs
-                                                                Nothing ->  case (getValue cERROR x) :: Maybe String of
-                                                                                Just y  -> GCMError y
-                                                                                Nothing -> GCMError ""
-                                                      in map f list
-                                  ,   newRegids     = let
-                                                        g (x,list') = case (getValue cREGISTRATION_ID list') :: Maybe String of
-                                                                            Just xs ->  (x,xs)
-                                                                            Nothing ->  (x,[])
-                                                      in filter (\(x,y) -> y /= []) $ map g mapMsg
-                                  ,   unRegistered  = let
-                                                        g (x,list') = case (getValue cERROR list') :: Maybe String of
-                                                                            Just "NotRegistered" ->  True
-                                                                            _                    ->  False
-                                                      in map fst $ filter g mapMsg
-                                  ,   toReSend      = let
-                                                        g (x,list') = case (getValue cERROR list') :: Maybe String of
-                                                                            Just "Unavailable"  ->  True
-                                                                            _                   ->  False
-                                                      in map fst $ filter g mapMsg
-                                  }
-                        _      -> fail "Error parsing Response"
+                          in
+                          return $ def {
+                              multicast_id  = (getValue cMULTICAST_ID a) :: Maybe Integer
+                          ,   success       = (getValue cSUCESS a) :: Maybe Int
+                          ,   failure       = (getValue cFAILURE a) :: Maybe Int
+                          ,   canonical_ids = (getValue cCANONICAL_IDS a) :: Maybe Int
+                          ,   results       = let
+                                                 f x = case (getValue cMESSAGE_ID x) :: Maybe String of
+                                                          Just xs ->  GCMOk xs
+                                                          Nothing ->  case (getValue cERROR x) :: Maybe String of
+                                                                         Just y  -> GCMError y
+                                                                         Nothing -> GCMError ""
+                                              in map f list
+                          ,   newRegids     = let
+                                                 g (x,list') = case (getValue cREGISTRATION_ID list') :: Maybe String of
+                                                                  Just xs ->  (x,xs)
+                                                                  Nothing ->  (x,[])
+                                              in filter (\(x,y) -> y /= []) $ map g mapMsg
+                          ,   unRegistered  = let
+                                                 g (x,list') = case (getValue cERROR list') :: Maybe String of
+                                                                  Just cNOT_REGISTERED ->  True
+                                                                  _                    ->  False
+                                              in map fst $ filter g mapMsg
+                          ,   toReSend      = let
+                                                 g (x,list') = case (getValue cERROR list') :: Maybe String of
+                                                                  Just cUNAVAILABLE  ->  True
+                                                                  _                  ->  False
+                                              in map fst $ filter g mapMsg
+                          }
+                _      -> fail "Error parsing Response"

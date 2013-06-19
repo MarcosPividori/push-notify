@@ -1,8 +1,5 @@
 -- GSoC 2013 - Communicating with mobile devices.
 
-{-# LANGUAGE OverloadedStrings, TypeFamilies, TemplateHaskell,
-             QuasiQuotes, MultiParamTypeClasses, GeneralizedNewtypeDeriving, FlexibleContexts, GADTs #-}
-
 -- | This Module define the main data types for sending Push Notifications through Google Cloud Messaging.
 module Types (GCMmessage(..),GCMresult(..),MRes(..),RegId,Notif_key,Notif_key_name) where
 
