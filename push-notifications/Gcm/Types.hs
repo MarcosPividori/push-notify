@@ -1,10 +1,12 @@
 -- GSoC 2013 - Communicating with mobile devices.
 
 -- | This Module define the main data types for sending Push Notifications through Google Cloud Messaging.
-module Gcm.Types (GCMmessage(..),GCMresult(..),MRes(..),RegId,Notif_key,Notif_key_name) where
+module Types (GCMmessage(..),GCMresult(..),MRes(..),RegId,Notif_key,Notif_key_name) where
 
 import Data.Default
-import Data.Aeson.Types
+import Data.Aeson
+import Control.Monad.Writer
+import Constants
 
 type RegId = String
 type Notif_key = String
@@ -64,3 +66,26 @@ instance Default GCMresult where
     ,   unRegistered = []
     ,   toReSend = []
     }
+
+
+func text (Just x)  = tell [(text .= x)]
+func text Nothing   = tell []
+
+func' text []   = tell []
+func' text xs   = tell [(text .= xs)]
+
+func'' text True  = tell [(text .= True)]
+func'' text False = tell []
+
+instance ToJSON GCMmessage where
+    toJSON msg = object $ execWriter $ do
+                                        func cREGISTRATION_IDS $ registration_ids msg
+                                        func cNOTIFICATION_KEY $ notification_key msg
+                                        func cNOTIFICATION_KEY_NAME $ notification_key_name msg
+                                        func cTIME_TO_LIVE $ time_to_live msg
+                                        func cDATA $ data_object msg
+                                        func' cCOLLAPSE_KEY $ collapse_key msg
+                                        func' cRESTRICTED_PACKAGE_NAME $ restricted_package_name msg
+                                        func'' cDELAY_WHILE_IDLE $ delay_while_idle msg
+                                        func'' cDRY_RUN $ dry_run msg
+

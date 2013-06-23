@@ -4,7 +4,7 @@
              QuasiQuotes, MultiParamTypeClasses, GeneralizedNewtypeDeriving, FlexibleContexts, GADTs #-}
 
 -- | This Module define the main function to send Push Notifications through Google Cloud Messaging.
-module Gcm.Send (sendGCM) where
+module Send (sendGCM) where
 
 import Types
 import ApiKey
@@ -22,7 +22,7 @@ import Control.Monad.IO.Class   (liftIO)
 import Data.Aeson
 import Data.Aeson.Types         
 import Data.Map                 (Map,lookup)
-import Data.Text                (Text, pack)
+import Data.Text                (Text, pack, unpack)
 import Data.String
 import Control.Retry
 import Control.Concurrent
@@ -36,9 +36,9 @@ retrySettingsGCM = RetrySettings {
 -- | 'sendGCM' sends the message through a GCM Server.
 sendGCM :: GCMmessage -> Int -> IO GCMresult
 sendGCM msg numRet = withManager $ \manager -> do
-    value <- liftIO $ gcmToJson msg
+    value <- return $ toJSON msg
     let valueBS = encode value
-    req' <- liftIO $ parseUrl cPOST_URL
+    req' <- liftIO $ parseUrl $ unpack cPOST_URL
     let req = req' {
                    method = "POST",
                    requestBody = RequestBodyLBS valueBS,
@@ -54,7 +54,7 @@ retry req manager numRet msg = do
                                 retrySettingsGCM{numRetries = limitedRetries numRet}) ifRetry $ http req manager
         if (statusCode $ status) >= 500
         then
-            case Prelude.lookup (fromString cRETRY_AFTER) headers of
+            case Prelude.lookup (fromString $ unpack cRETRY_AFTER) headers of
                 Nothing ->  liftIO $ fail "Persistent internal error after retrying"
                 Just t  ->  do
                                 let time = (read (B.unpack t)) :: Int -- I need to check this line
@@ -66,50 +66,17 @@ retry req manager numRet msg = do
                 liftIO $ handleSucessfulResponse resValue msg
         
         where ifRetry x = if (statusCode $ responseStatus x) >= 500
-                            then case Prelude.lookup (fromString cRETRY_AFTER) (responseHeaders x) of
+                            then case Prelude.lookup (fromString $ unpack cRETRY_AFTER) (responseHeaders x) of
                                     Nothing ->  True  -- Internal Server error, and don't specify a time to wait
                                     Just t  ->  False -- Internal Server error, and specify a time to wait
                             else False
 
--- | 'gcmToJson' creates the block to be sent.
-gcmToJson :: GCMmessage -> IO Value
-gcmToJson msg = return $ object $ gcmToObject msg
 
-gcmToObject :: GCMmessage -> [Pair]
-gcmToObject msg = let
-                        el1 = case registration_ids msg of
-                                Just regIds ->  [(pack cREGISTRATION_IDS .= (regIds :: [String] ))]
-                                Nothing     ->  []
-                        el2 = case notification_key msg of
-                                Just key ->  [(pack cNOTIFICATION_KEY .= (key :: String ))]
-                                Nothing  ->  []
-                        el3 = case notification_key_name msg of
-                                Just key_name   ->  [(pack cNOTIFICATION_KEY_NAME .= (key_name :: String))]
-                                Nothing         ->  []
-                        el4 = case collapse_key msg of
-                                []  -> []
-                                xs  -> [(pack cCOLLAPSE_KEY .= xs)]
-                        el5 = case data_object msg of
-                                Nothing  -> []
-                                Just dat -> [(pack cDATA .= dat)]
-                        el6 = case delay_while_idle msg of
-                                True    -> [(pack cDELAY_WHILE_IDLE .= True)]
-                                False   -> []
-                        el7 = case time_to_live msg of 
-                                Nothing -> []
-                                Just t  -> [(pack cTIME_TO_LIVE .= t)]
-                        el8 = case restricted_package_name msg of
-                                []  ->  []
-                                xs  ->  [(pack cRESTRICTED_PACKAGE_NAME .= xs)]
-                        el9 = case dry_run msg of
-                                True    -> [(pack cDRY_RUN .= True)]
-                                False   -> []
-                  in
-                  el1 ++ el2 ++ el3 ++ el4 ++ el5 ++ el6 ++ el7 ++ el8 ++ el9
 
-getValue :: FromJSON b => String -> Map Text Value -> Maybe b
+
+getValue :: FromJSON b => Text -> Map Text Value -> Maybe b
 getValue xs x = do
-                    dat <-  Data.Map.lookup (pack xs) x
+                    dat <-  Data.Map.lookup xs x
                     parseMaybe parseJSON dat
 
 -- | 'handleSucessfullResponse' analyzes the server response and generates useful information.
