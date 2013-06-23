@@ -7,10 +7,12 @@
 module Gcm.Send (sendGCM) where
 
 import Gcm.Types
-import Gcm.Constants         
+import Gcm.Constants
+import Control.Monad.Trans.Control  (MonadBaseControl)
+import Control.Monad.Trans.Resource (MonadResource)
 import Network.HTTP.Conduit
     (http, parseUrl, withManager, RequestBody (RequestBodyLBS), requestBody, 
-    requestHeaders,	 method, Response (..), Manager, newManager, def
+    requestHeaders,	 method, Response (..), Manager, newManager, def, Request
     )
 import Network.HTTP.Types
 import Data.Aeson.Parser        (json)
@@ -48,13 +50,19 @@ sendGCM cnfg msg numRet = withManager $ \manager -> do
     retry req manager numRet msg
 
 -- 'retry' try numRet attemps to send the messages.
+retry :: (MonadBaseControl IO m,MonadResource m)
+        => Request m
+        -> Manager
+        -> Int
+        -> GCMmessage
+        -> m GCMresult
 retry req manager numRet msg = do
         Response status version headers body <- retrying (
                                 retrySettingsGCM{numRetries = limitedRetries numRet}) ifRetry $ http req manager
         if (statusCode $ status) >= 500
           then
             case Prelude.lookup (fromString $ unpack cRETRY_AFTER) headers of
-                Nothing ->  liftIO $ fail "Persistent internal error after retrying"
+                Nothing ->  fail "Persistent internal error after retrying"
                 Just t  ->  do
                                 let time = (read (B.unpack t)) :: Int -- I need to check this line
                                 liftIO $ threadDelay (time*1000000) -- from seconds to microseconds
@@ -62,7 +70,6 @@ retry req manager numRet msg = do
           else
             do
                 resValue <- body $$+- sinkParser json
-                liftIO $ print $ show resValue
                 liftIO $ handleSucessfulResponse resValue msg
         
         where ifRetry x = if (statusCode $ responseStatus x) >= 500
@@ -72,8 +79,8 @@ retry req manager numRet msg = do
                             else False
 
 getValue :: FromJSON b => Text -> Map Text Value -> Maybe b
-getValue xs x = do
-                    dat <-  Data.Map.lookup xs x
+getValue x xs = do
+                    dat <-  Data.Map.lookup x xs
                     parseMaybe parseJSON dat
 
 -- | 'handleSucessfullResponse' analyzes the server response and generates useful information.

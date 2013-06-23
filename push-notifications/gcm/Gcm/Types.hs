@@ -11,20 +11,25 @@ module Gcm.Types
     , Notif_key_name
     ) where
 
+
 import Gcm.Constants
 import Data.Default
 import Data.Aeson.Types
 import Data.Text
 import Control.Monad.Writer
 
+
+-- | 'GCMAppConfig' represents the main necessary information for sending notifications through GCM.
 data GCMAppConfig = GCMAppConfig
     {   apiKey :: String
     ,   projectId :: String
     }   deriving Show
 
+
 type RegId = String
 type Notif_key = String
 type Notif_key_name = String
+
 
 -- | 'GCMmessage' represents a message to be sent through GCM.
 data GCMmessage = GCMmessage
@@ -52,9 +57,11 @@ instance Default GCMmessage where
     ,   dry_run = False
     }
 
+
 data MRes = GCMError String
           | GCMOk String
             deriving Show
+
 
 -- | 'GCMresult' represents information about messages after a communication with GCM Servers.
 data GCMresult = GCMresult
@@ -65,7 +72,7 @@ data GCMresult = GCMresult
     ,   results :: [MRes]
     ,   newRegids :: [(RegId,RegId)] -- ^ regIds that need to be replaced.
     ,   unRegistered :: [RegId] -- ^ regIds that need to be removed.
-    ,   toReSend :: [RegId] -- ^ regIds that I need to resend the message to, 
+    ,   toReSend :: [RegId] -- ^ regIds that I need to resend the message to,
                             -- because there was an internal problem in the GCM servers.
     } deriving Show
 
@@ -82,27 +89,24 @@ instance Default GCMresult where
     }
 
 
-func :: (ToJSON a,MonadWriter [Pair] m) => Text -> Maybe a -> m ()
-func label (Just x)  = tell [(label .= x)]
-func label Nothing   = tell []
-
-func' :: (ToJSON t,MonadWriter [Pair] m) => Text -> [t] -> m ()
-func' label []   = tell []
-func' label xs   = tell [(label .= xs)]
-
-func'' :: (MonadWriter [Pair] m) => Text -> Bool -> m ()
-func'' label True  = tell [(label .= True)]
-func'' label False = tell []
+ifNotDef :: (ToJSON a,MonadWriter [Pair] m,Eq a)
+            => Text
+            -> (GCMmessage -> a)
+            -> GCMmessage
+            -> m ()
+ifNotDef label f msg = if f def /= f msg
+                        then tell [(label .= (f msg))]
+                        else tell []
 
 instance ToJSON GCMmessage where
     toJSON msg = object $ execWriter $ do
-                                        func cREGISTRATION_IDS $ registration_ids msg
-                                        func cNOTIFICATION_KEY $ notification_key msg
-                                        func cNOTIFICATION_KEY_NAME $ notification_key_name msg
-                                        func cTIME_TO_LIVE $ time_to_live msg
-                                        func cDATA $ data_object msg
-                                        func' cCOLLAPSE_KEY $ collapse_key msg
-                                        func' cRESTRICTED_PACKAGE_NAME $ restricted_package_name msg
-                                        func'' cDELAY_WHILE_IDLE $ delay_while_idle msg
-                                        func'' cDRY_RUN $ dry_run msg
+                                        ifNotDef cREGISTRATION_IDS registration_ids msg
+                                        ifNotDef cNOTIFICATION_KEY notification_key msg
+                                        ifNotDef cNOTIFICATION_KEY_NAME notification_key_name msg
+                                        ifNotDef cTIME_TO_LIVE time_to_live msg
+                                        ifNotDef cDATA data_object msg
+                                        ifNotDef cCOLLAPSE_KEY collapse_key msg
+                                        ifNotDef cRESTRICTED_PACKAGE_NAME restricted_package_name msg
+                                        ifNotDef cDELAY_WHILE_IDLE delay_while_idle msg
+                                        ifNotDef cDRY_RUN dry_run msg
 
