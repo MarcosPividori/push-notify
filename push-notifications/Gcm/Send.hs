@@ -36,8 +36,9 @@ retrySettingsGCM = RetrySettings {
 -- | 'sendGCM' sends the message through a GCM Server.
 sendGCM :: GCMmessage -> Int -> IO GCMresult
 sendGCM msg numRet = withManager $ \manager -> do
-    value <- return $ toJSON msg
-    let valueBS = encode value
+    let
+        value = toJSON msg
+        valueBS = encode value
     req' <- liftIO $ parseUrl $ unpack cPOST_URL
     let req = req' {
                    method = "POST",
@@ -91,10 +92,10 @@ handleSucessfulResponse resValue msg =
                                            Nothing -> []
                      in
                      return $ def {
-                         multicast_id  = (getValue cMULTICAST_ID a) :: Maybe Integer
-                     ,   success       = (getValue cSUCESS a) :: Maybe Int
-                     ,   failure       = (getValue cFAILURE a) :: Maybe Int
-                     ,   canonical_ids = (getValue cCANONICAL_IDS a) :: Maybe Int
+                         multicast_id  = getValue cMULTICAST_ID a
+                     ,   success       = getValue cSUCESS a
+                     ,   failure       = getValue cFAILURE a
+                     ,   canonical_ids = getValue cCANONICAL_IDS a
                      ,   results       = let
                                             f x = case (getValue cMESSAGE_ID x) :: Maybe String of
                                                      Just xs ->  GCMOk xs
