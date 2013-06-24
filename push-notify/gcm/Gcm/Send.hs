@@ -4,10 +4,10 @@
              QuasiQuotes, MultiParamTypeClasses, GeneralizedNewtypeDeriving, FlexibleContexts, GADTs #-}
 
 -- | This Module define the main function to send Push Notifications through Google Cloud Messaging.
-module Gcm.Send (sendGCM) where
+module PushNotify.Gcm.Send (sendGCM) where
 
-import Gcm.Types
-import Gcm.Constants
+import PushNotify.Gcm.Types
+import PushNotify.Gcm.Constants
 import Control.Monad.Trans.Control  (MonadBaseControl)
 import Control.Monad.Trans.Resource (MonadResource)
 import Network.HTTP.Conduit         (http, parseUrl, withManager, RequestBody (RequestBodyLBS),

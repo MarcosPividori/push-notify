@@ -2,7 +2,7 @@
 {-# LANGUAGE OverloadedStrings #-}
 
 -- | This Module define the main contants for sending Push Notifications through Google Cloud Messaging.
-module Gcm.Constants where
+module PushNotify.Gcm.Constants where
 
 import Data.Text
 
