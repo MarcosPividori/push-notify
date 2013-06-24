@@ -21,14 +21,14 @@ import Control.Monad.Writer
 
 -- | 'GCMAppConfig' represents the main necessary information for sending notifications through GCM.
 data GCMAppConfig = GCMAppConfig
-    {   apiKey :: String
-    ,   projectId :: String
+    {   apiKey :: Text
+    ,   projectId :: Text
     }   deriving Show
 
 
-type RegId = String
-type Notif_key = String
-type Notif_key_name = String
+type RegId = Text
+type Notif_key = Text
+type Notif_key_name = Text
 
 
 -- | 'GCMmessage' represents a message to be sent through GCM.
@@ -36,11 +36,11 @@ data GCMmessage = GCMmessage
     {   registration_ids :: Maybe [RegId]
     ,   notification_key :: Maybe Notif_key -- Need to be continued, this is a new option added in the Google IO 2013
     ,   notification_key_name :: Maybe Notif_key_name -- this too.
-    ,   collapse_key :: String
+    ,   collapse_key :: Maybe Text
     ,   data_object :: Maybe Object
     ,   delay_while_idle :: Bool
     ,   time_to_live :: Maybe Int
-    ,   restricted_package_name :: String
+    ,   restricted_package_name :: Maybe Text
     ,   dry_run :: Bool
     } deriving Show
 
@@ -49,17 +49,17 @@ instance Default GCMmessage where
         registration_ids = Nothing
     ,   notification_key = Nothing
     ,   notification_key_name = Nothing
-    ,   collapse_key = []
+    ,   collapse_key = Nothing
     ,   data_object = Nothing
     ,   delay_while_idle = False
     ,   time_to_live = Nothing
-    ,   restricted_package_name = []
+    ,   restricted_package_name = Nothing
     ,   dry_run = False
     }
 
 -- | 'MRes' represents information about a message which was sent.
-data MRes = GCMError String
-          | GCMOk String
+data MRes = GCMError Text
+          | GCMOk Text
             deriving Show
 
 

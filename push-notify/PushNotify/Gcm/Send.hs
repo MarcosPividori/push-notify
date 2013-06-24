@@ -21,7 +21,7 @@ import Control.Monad.IO.Class       (liftIO)
 import Data.Aeson
 import Data.Aeson.Types
 import Data.Map                     (Map,lookup)
-import Data.Text                    (Text, pack, unpack)
+import Data.Text                    (Text, pack, unpack, empty)
 import Data.String
 import Control.Retry
 import Control.Concurrent
@@ -44,7 +44,7 @@ sendGCM cnfg msg numRet = withManager $ \manager -> do
                    requestBody = RequestBodyLBS valueBS,
                    requestHeaders =
                         [ ("Content-Type", "application/json"),
-                          ("Authorization", fromString $ apiKey cnfg) -- API Key. (provided by Google)
+                          ("Authorization", fromString $ unpack $ apiKey cnfg) -- API Key. (provided by Google)
                         ]}
     retry req manager numRet msg
 
@@ -95,17 +95,17 @@ handleSucessfulResponse resValue msg =
                      ,   failure       = getValue cFAILURE a
                      ,   canonical_ids = getValue cCANONICAL_IDS a
                      ,   results       = let
-                                            f x = case (getValue cMESSAGE_ID x) :: Maybe String of
+                                            f x = case (getValue cMESSAGE_ID x) :: Maybe Text of
                                                      Just xs ->  GCMOk xs
-                                                     Nothing ->  case (getValue cERROR x) :: Maybe String of
+                                                     Nothing ->  case (getValue cERROR x) :: Maybe Text of
                                                                     Just y  -> GCMError y
                                                                     Nothing -> GCMError ""
                                          in map f list
                      ,   newRegids     = let
                                             g (x,list') = case (getValue cREGISTRATION_ID list') :: Maybe RegId of
                                                              Just xs ->  (x,xs)
-                                                             Nothing ->  (x,[])
-                                         in filter (\(x,y) -> y /= []) $ map g mapMsg
+                                                             Nothing ->  (x,empty)
+                                         in filter (\(x,y) -> y /= empty) $ map g mapMsg
                      ,   unRegistered  = let
                                             g (x,list') = ((getValue cERROR list') :: Maybe Text) == Just cNOT_REGISTERED
                                          in map fst $ filter g mapMsg
