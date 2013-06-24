@@ -1,11 +1,13 @@
 
-import PushNotify.Gcm.Types
-import PushNotify.Gcm.Send
+import Network.PushNotify.Gcm.Types
+import Network.PushNotify.Gcm.Send
 import System.Environment
 import Data.Aeson
 import Data.Text    (Text, pack)
 import Data.Default
 import Data.HashMap.Strict
+
+{-# LANGUAGE OverloadedStrings #-}
 
 myGcmApp :: GCMAppConfig
 myGcmApp = GCMAppConfig
