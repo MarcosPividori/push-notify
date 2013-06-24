@@ -13,6 +13,6 @@ build-type:          Simple
 cabal-version:       >=1.8
 
 library
-  exposed-modules:     PushNotify.Gcm.Send, PushNotify.Gcm.Constants, PushNotify.Gcm.Types
+  exposed-modules:     Network.PushNotify.Gcm.Send, Network.PushNotify.Gcm.Constants, Network.PushNotify.Gcm.Types
   -- other-modules:       
   build-depends:       base ==4.5.*, monad-control ==0.3.*, resourcet ==0.4.*, http-conduit ==1.8.*, http-types ==0.8.*, aeson ==0.6.*, conduit ==0.5.*, attoparsec-conduit ==0.5.*, transformers ==0.3.*, containers ==0.4.*, text ==0.11.*, retry ==0.2.*, bytestring ==0.9.*, data-default ==0.5.*, mtl ==2.1.*
