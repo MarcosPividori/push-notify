@@ -10,27 +10,26 @@ import Gcm.Types
 import Gcm.Constants
 import Control.Monad.Trans.Control  (MonadBaseControl)
 import Control.Monad.Trans.Resource (MonadResource)
-import Network.HTTP.Conduit
-    (http, parseUrl, withManager, RequestBody (RequestBodyLBS), requestBody, 
-    requestHeaders,	 method, Response (..), Manager, newManager, def, Request
-    )
+import Network.HTTP.Conduit         (http, parseUrl, withManager, RequestBody (RequestBodyLBS),
+                                     requestBody, requestHeaders, method, Response (..), Manager,
+                                     newManager, def, Request)
 import Network.HTTP.Types
-import Data.Aeson.Parser        (json)
-import Data.Conduit             (($$+-))
-import Data.Conduit.Attoparsec  (sinkParser)
-import Control.Monad.IO.Class   (liftIO)
+import Data.Aeson.Parser            (json)
+import Data.Conduit                 (($$+-))
+import Data.Conduit.Attoparsec      (sinkParser)
+import Control.Monad.IO.Class       (liftIO)
 import Data.Aeson
-import Data.Aeson.Types         
-import Data.Map                 (Map,lookup)
-import Data.Text                (Text, pack, unpack)
+import Data.Aeson.Types
+import Data.Map                     (Map,lookup)
+import Data.Text                    (Text, pack, unpack)
 import Data.String
 import Control.Retry
 import Control.Concurrent
 import qualified Data.ByteString.Char8 as B
 
-retrySettingsGCM = RetrySettings {	 
+retrySettingsGCM = RetrySettings {
     backoff = True
-,   baseDelay = 1000
+,   baseDelay = 100
 }
 
 -- | 'sendGCM' sends the message through a GCM Server.
@@ -51,18 +50,14 @@ sendGCM cnfg msg numRet = withManager $ \manager -> do
 
 -- 'retry' try numRet attemps to send the messages.
 retry :: (MonadBaseControl IO m,MonadResource m)
-        => Request m
-        -> Manager
-        -> Int
-        -> GCMmessage
-        -> m GCMresult
+        => Request m -> Manager -> Int -> GCMmessage -> m GCMresult
 retry req manager numRet msg = do
         Response status version headers body <- retrying (
                                 retrySettingsGCM{numRetries = limitedRetries numRet}) ifRetry $ http req manager
         if (statusCode $ status) >= 500
           then
             case Prelude.lookup (fromString $ unpack cRETRY_AFTER) headers of
-                Nothing ->  fail "Persistent internal error after retrying"
+                Nothing ->  fail "Persistent server internal error after retrying"
                 Just t  ->  do
                                 let time = (read (B.unpack t)) :: Int -- I need to check this line
                                 liftIO $ threadDelay (time*1000000) -- from seconds to microseconds
@@ -83,7 +78,7 @@ getValue x xs = do
                     dat <-  Data.Map.lookup x xs
                     parseMaybe parseJSON dat
 
--- | 'handleSucessfullResponse' analyzes the server response and generates useful information.
+-- 'handleSucessfullResponse' analyzes the server response and generates useful information.
 handleSucessfulResponse :: Value -> GCMmessage -> IO GCMresult
 handleSucessfulResponse resValue msg =
        case (parseMaybe parseJSON resValue) :: Maybe (Map Text Value) of
@@ -107,7 +102,7 @@ handleSucessfulResponse resValue msg =
                                                                     Nothing -> GCMError ""
                                          in map f list
                      ,   newRegids     = let
-                                            g (x,list') = case (getValue cREGISTRATION_ID list') :: Maybe String of
+                                            g (x,list') = case (getValue cREGISTRATION_ID list') :: Maybe RegId of
                                                              Just xs ->  (x,xs)
                                                              Nothing ->  (x,[])
                                          in filter (\(x,y) -> y /= []) $ map g mapMsg

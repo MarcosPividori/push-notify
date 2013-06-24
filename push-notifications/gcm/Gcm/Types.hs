@@ -35,7 +35,7 @@ type Notif_key_name = String
 data GCMmessage = GCMmessage
     {   registration_ids :: Maybe [RegId]
     ,   notification_key :: Maybe Notif_key -- Need to be continued, this is a new option added in the Google IO 2013
-    ,   notification_key_name :: Maybe Notif_key_name
+    ,   notification_key_name :: Maybe Notif_key_name -- this too.
     ,   collapse_key :: String
     ,   data_object :: Maybe Object
     ,   delay_while_idle :: Bool
@@ -57,7 +57,7 @@ instance Default GCMmessage where
     ,   dry_run = False
     }
 
-
+-- | 'MRes' represents information about a message which was sent.
 data MRes = GCMError String
           | GCMOk String
             deriving Show
