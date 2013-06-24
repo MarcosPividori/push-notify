@@ -1,6 +1,6 @@
 
-import Gcm.Types
-import Gcm.Send
+import PushNotify.Gcm.Types
+import PushNotify.Gcm.Send
 import System.Environment
 import Data.Aeson
 import Data.Text    (Text, pack)
@@ -25,5 +25,5 @@ main = do
                             ,   time_to_live = Just 120
                             ,   dry_run = True
                             }
-            result          <-  sendGCM myGcmApp message 1
+            result          <-  sendGCM myGcmApp message 0
             print $ show result
