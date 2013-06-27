@@ -7,8 +7,10 @@ import java.util.concurrent.atomic.AtomicInteger;
 import android.os.AsyncTask;
 import android.os.Bundle;
 import android.app.Activity;
+import android.app.AlertDialog;
 import android.content.BroadcastReceiver;
 import android.content.Context;
+import android.content.DialogInterface;
 import android.content.Intent;
 import android.content.IntentFilter;
 import android.content.SharedPreferences;
@@ -30,10 +32,10 @@ public class MainActivity extends Activity {
     private static final String PROPERTY_APP_VERSION = "appVersion";
     private static final String PROPERTY_ON_SERVER_EXPIRATION_TIME = "onServerExpirationTimeMs";
     
-    /** Default lifespan (7 days) of a reservation until it is considered expired. */
+    // Default lifespan (7 days) of a reservation until it is considered expired.
     public static final long REGISTRATION_EXPIRY_TIME_MS = 1000 * 3600 * 24 * 7;
 
-    /** Tag used on log messages. */
+    // Tag used on log messages.
     static final String TAG = "GSoC-Example";
 
     TextView mDisplay;
@@ -45,6 +47,7 @@ public class MainActivity extends Activity {
 
     String regid,user,password;
     Boolean registered;
+    AlertDialog dialog;
 
     @Override
     public void onCreate(Bundle savedInstanceState) {
@@ -58,11 +61,11 @@ public class MainActivity extends Activity {
         registered = prefs.getBoolean("registered", false);
         user = prefs.getString("user","");
         password = prefs.getString("user","");
-        String lastMessage = prefs.getString("lastmessage","No Messages!");
+        String historial = prefs.getString("historial","No Messages!");
              
         mDisplay = (TextView) findViewById(R.id.display);
         
-        mDisplay.append(lastMessage+"\n");
+        mDisplay.append(historial+"\n");
         
         context = getApplicationContext();
         regid = getRegistrationId(context);
@@ -98,15 +101,27 @@ public class MainActivity extends Activity {
     @Override
     public boolean onOptionsItemSelected(MenuItem item) {
         switch(item.getItemId()) {
-            //Esta opcion enviara al server la orden de ejecutar el programa por defecto.
-            //Limpiar la pantalla.
+            //Clean the screen.
             case R.id.options_clear:
                 mDisplay.setText(null);
                 SharedPreferences.Editor editor = prefs.edit();
-        	    editor.putString("lastmessage", "");
+        	    editor.putString("historial", "");
         	    editor.commit();
                 return true;
-            //Cerrar la aplicacion.
+            //Show some info about this example.
+            case R.id.options_information:
+                AlertDialog.Builder builder = new AlertDialog.Builder(MainActivity.this);
+                builder.setMessage(R.string.info_message)
+                       .setTitle(R.string.info_title)
+                	   .setNeutralButton(R.string.close, new DialogInterface.OnClickListener() {
+                    public void onClick(DialogInterface dialog, int id) {
+                        ;
+                    }
+                });
+                dialog = builder.create();
+                dialog.show();
+                return true;
+            //Close the app.
             case R.id.options_exit:
                 finish();
                 return true;
@@ -118,6 +133,7 @@ public class MainActivity extends Activity {
     @Override
     protected void onActivityResult(int requestCode, int resultCode, Intent data) {
     	super.onActivityResult(requestCode, resultCode, data);
+    	//Returning from the register activity.
     	if(requestCode == 1000){
     		user = data.getStringExtra("USER");
     		password = data.getStringExtra("PASSWORD");
@@ -130,14 +146,9 @@ public class MainActivity extends Activity {
     	}
     }
         
-    /**
-     * Gets the current registration id for application on GCM service.
-     * <p>
-     * If result is empty, the registration has failed.
-     *
-     * @return registration id, or empty string if the registration is not
-     *         complete.
-     */
+    
+    // Gets the current registration id for application on GCM service.
+    // If result is empty, the registration has failed.
     private String getRegistrationId(Context context) {
         String registrationId = prefs.getString(PROPERTY_REG_ID, "");
         if (registrationId.length() == 0) {
@@ -155,7 +166,7 @@ public class MainActivity extends Activity {
         return registrationId;
     }
   
-    /** @return Application's version code from the {@code PackageManager}. */
+    // return Application's version code from the PackageManager
     private static int getAppVersion(Context context) {
         try {
             PackageInfo packageInfo = context.getPackageManager()
@@ -167,27 +178,20 @@ public class MainActivity extends Activity {
         }
     }
     
-    /**
-     * Checks if the registration has expired.
-     *
-     * <p>To avoid the scenario where the device sends the registration to the
-     * server but the server loses it, the app developer may choose to re-register
-     * after REGISTRATION_EXPIRY_TIME_MS.
-     *
-     * @return true if the registration has expired.
-     */
+    // Checks if the registration has expired.
+    // To avoid the scenario where the device sends the registration to the
+    // server but the server loses it, the app developer may choose to re-register
+    // after REGISTRATION_EXPIRY_TIME_MS.
+    // return true if the registration has expired.
     private boolean isRegistrationExpired() {
         // checks if the information is not stale
         long expirationTime = prefs.getLong(PROPERTY_ON_SERVER_EXPIRATION_TIME, -1);
         return System.currentTimeMillis() > expirationTime;
     }
     
-    /**
-     * Registers the application with GCM servers asynchronously.
-     * <p>
-     * Stores the registration id, app versionCode, and expiration time in the 
-     * application's shared preferences.
-     */
+    // Registers the application with GCM servers asynchronously.
+    // Stores the registration id, app versionCode, and expiration time in the 
+    // application's shared preferences.
     private void registerBackground() {
         new AsyncTask<Void,Void,String>() {
             @Override
@@ -224,6 +228,8 @@ public class MainActivity extends Activity {
         }.execute(null, null, null);
     }
     
+    // Send the information to the server asynchronously.
+    // Save the success of failure in the variable "registered".
     private void sendInfoToServer(){
     	new AsyncTask<Void, Void, Boolean>() {
 
@@ -240,13 +246,9 @@ public class MainActivity extends Activity {
     	    }
     	}.execute(null,null,null);
     }
-    /**
-     * Stores the registration id, app versionCode, and expiration time in the
-     * application's {@code SharedPreferences}.
-     *
-     * @param context application's context.
-     * @param regId registration id
-     */
+    
+    // Stores the registration id, app versionCode, and expiration time in the
+    // application's SharedPreferences.
     private void setRegistrationId(Context context, String regId) {
         int appVersion = getAppVersion(context);
         Log.v(TAG, "Saving regId on app version " + appVersion);
@@ -261,6 +263,8 @@ public class MainActivity extends Activity {
         editor.commit();
     }    
     
+    
+    // To Receive the messages to be shown in the text view.
     private final BroadcastReceiver mHandleMessageReceiver =
             new BroadcastReceiver() {
         
@@ -268,9 +272,6 @@ public class MainActivity extends Activity {
         public void onReceive(final Context context, Intent intent) {
             String newMessage = intent.getExtras().getString(EXTRA_MESSAGE);
             mDisplay.append(newMessage+"\n");
-            //SharedPreferences.Editor editor = prefs.edit();
-    	    //editor.putString("lastmessage", newMessage);
-    	    //editor.commit();
         }
     };
     

@@ -20,7 +20,8 @@ public final class R {
         public static final int login_status=0x7f070001;
         public static final int login_status_message=0x7f070002;
         public static final int options_clear=0x7f070008;
-        public static final int options_exit=0x7f070009;
+        public static final int options_exit=0x7f07000a;
+        public static final int options_information=0x7f070009;
         public static final int password=0x7f070005;
         public static final int sign_in_button=0x7f070007;
         public static final int user=0x7f070004;
@@ -33,26 +34,30 @@ public final class R {
         public static final int activity_main=0x7f060000;
     }
     public static final class string {
-        public static final int action_sign_in_register=0x7f04000b;
-        public static final int action_sign_in_short=0x7f04000c;
+        public static final int action_sign_in_register=0x7f04000f;
+        public static final int action_sign_in_short=0x7f040010;
         public static final int app_name=0x7f040000;
-        public static final int error_field_required=0x7f040011;
-        public static final int error_incorrect_password=0x7f040010;
-        public static final int error_invalid_password=0x7f04000f;
-        public static final int error_invalid_user=0x7f04000e;
-        public static final int login_progress_signing_in=0x7f04000d;
+        public static final int close=0x7f04000b;
+        public static final int error_field_required=0x7f040015;
+        public static final int error_incorrect_password=0x7f040014;
+        public static final int error_invalid_password=0x7f040013;
+        public static final int error_invalid_user=0x7f040012;
+        public static final int info_message=0x7f040009;
+        public static final int info_title=0x7f04000a;
+        public static final int login_progress_signing_in=0x7f040011;
         public static final int menu_settings=0x7f040002;
         public static final int no_messages=0x7f040001;
         public static final int options_clear=0x7f040006;
         public static final int options_exit=0x7f040007;
-        public static final int prompt_password=0x7f04000a;
+        public static final int options_information=0x7f040008;
+        public static final int prompt_password=0x7f04000e;
         /**  Strings related to login 
          */
-        public static final int prompt_user=0x7f040009;
+        public static final int prompt_user=0x7f04000d;
         public static final int server_register_error=0x7f040005;
         public static final int server_registered=0x7f040004;
         public static final int server_registering=0x7f040003;
-        public static final int title_activity_registro=0x7f040008;
+        public static final int title_activity_registro=0x7f04000c;
     }
     public static final class style {
         /** 

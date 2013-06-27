@@ -8,5 +8,10 @@
     <string name="server_registered">From Demo Server: successfully added device!</string>
     <string name="server_register_error">Could not register device on Demo Server after %1$d attempts.</string>
     <string name="options_clear">Clear</string>
-    <string name="options_exit">Exit</string>    
+    <string name="options_exit">Exit</string>
+    <string name="options_information">Info</string>
+    <string name="info_message">This app is a very simple example to show the GCM registration and reception of 
+notifications from a Yesod Server.\nThis was developed as part of the GSoC project: \"Communicating with Mobile Devices\"</string>
+    <string name="info_title">General information\:</string>
+    <string name="close">Close</string>
 </resources>

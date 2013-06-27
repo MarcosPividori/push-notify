@@ -3,6 +3,10 @@
         android:id="@+id/options_clear"
         android:title="@string/options_clear">
     </item>
+	<item
+        android:id="@+id/options_information"
+        android:title="@string/options_information">
+    </item>
     <item
         android:id="@+id/options_exit"
         android:title="@string/options_exit">

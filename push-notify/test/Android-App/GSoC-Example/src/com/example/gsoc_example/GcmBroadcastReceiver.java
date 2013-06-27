@@ -15,9 +15,8 @@ import android.support.v4.app.NotificationCompat;
 
 import static com.example.gsoc_example.CommonUtilities.displayMessage;
 
-/**
- * Handling of GCM messages.
- */
+
+// Handling of GCM messages.
 public class GcmBroadcastReceiver extends BroadcastReceiver {
     
 	static final String TAG = "GSoC-Example";
@@ -40,10 +39,11 @@ public class GcmBroadcastReceiver extends BroadcastReceiver {
         	String message = intent.getStringExtra("Message");
             if(message != null){
             	sendNotification("Received: " + message);
-            	SharedPreferences prefs = context.getSharedPreferences(MainActivity.class.getSimpleName(),Context.MODE_PRIVATE);
-            	String list = prefs.getString("lastmessage","");
+            	SharedPreferences prefs = context.getSharedPreferences(MainActivity.class.getSimpleName(),
+            										Context.MODE_PRIVATE);
+            	String list = prefs.getString("historial","");
             	SharedPreferences.Editor editor = prefs.edit();
-        	    editor.putString("lastmessage", list + "Received: " + message + "\n");
+        	    editor.putString("historial", list + "Received: " + message + "\n");
         	    editor.commit();
             	displayMessage(context,"Received: " + message);
         	}

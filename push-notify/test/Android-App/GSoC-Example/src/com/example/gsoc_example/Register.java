@@ -26,7 +26,6 @@ public class Register extends Activity {
 
 		setContentView(R.layout.activity_register);
 
-		//mUser = getIntent().getStringExtra(EXTRA_EMAIL);
 		mUserView = (EditText) findViewById(R.id.user);
 		mUserView.setText(mUser);
 
@@ -53,22 +52,22 @@ public class Register extends Activity {
 				});
 	}
 
-	// Intento de registrar la cuenta especificada, si hay errores, (email invalido, campos sin completar, etc.)
-	// los errores son presentados y no se completa el registro.
+	// Intent to register the specified account, if there is any error, (invalid user, field required, etc.)
+	// the errors are shown and the registration does not success.
 	public void attemptLogin() {
 
-		// Resetear errores.
+		// Reset errors.
 		mUserView.setError(null);
 		mPasswordView.setError(null);
 
-		// Guarda valores al intentar registrar.
+		// Save values.
 		mUser = mUserView.getText().toString();
 		mPassword = mPasswordView.getText().toString();
 
 		boolean cancel = false;
 		View focusView = null;
 
-		// Chequea por una valida password.
+		// Check for a valid password.
 		if (TextUtils.isEmpty(mPassword)) {
 			mPasswordView.setError(getString(R.string.error_field_required));
 			focusView = mPasswordView;
@@ -79,7 +78,7 @@ public class Register extends Activity {
 			cancel = true;
 		}
 
-		// Chequea por un valido usuario.
+		// Check for a valid user.
 		if (TextUtils.isEmpty(mUser)) {
 			mUserView.setError(getString(R.string.error_field_required));
 			focusView = mUserView;
@@ -91,10 +90,10 @@ public class Register extends Activity {
 		}
 
 		if (cancel) {
-			// Hubo un error, no se completa el registro y se enfoca en el primer error descubierto.
+			// There is an error, so registration does not success and focus on the error.
 			focusView.requestFocus();
 		} else {
-			// Envio de la informacion
+			// Send information to Main Activity.
 			Intent i = getIntent();
 			i.putExtra("USER",mUser);
 			i.putExtra("PASSWORD",mPassword);
