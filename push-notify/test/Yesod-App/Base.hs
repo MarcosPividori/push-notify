@@ -20,6 +20,7 @@ Devices
     password Text
     regId Text
     UniqueUser user
+    UniqueRegId regId
     deriving Show
 |]
 
@@ -70,18 +71,24 @@ postRegisterR :: Handler ()
 postRegisterR = do
     regId <- runInputPost $ ireq textField "regId"
     usr <- runInputPost $ ireq textField "user"
-    pass <- runInputPost $ ireq textField "pass"
-    persona <- runDB $ getBy $ UniqueUser usr
+    pass <- runInputPost $ ireq textField "password"
+    device <- runDB $ getBy $ UniqueUser usr
     liftIO (putStr ("\nREGISTRO:\n-USUARIO: "++(unpack usr)++"\n-PASSWORD: "++ (unpack pass)++"\n-REG ID: "++ (unpack regId)++"\n"))
-    case persona of
+    case device of
         Nothing -> do
-                        runDB $ insert $ Devices usr pass regId
-                        sendResponse $ RepJson emptyContent
+                        dev  <-  runDB $ getBy $ UniqueRegId regId
+                        case dev of
+                            Just x  ->  do
+                                            runDB $ update (entityKey (x)) [DevicesUser =. usr , DevicesPassword =. pass ]
+                                            sendResponse $ RepJson emptyContent
+                            Nothing ->  do
+                                            runDB $ insert $ Devices usr pass regId
+                                            sendResponse $ RepJson emptyContent
         Just a	-> case devicesPassword (entityVal (a)) == pass of
-                       True  -> do
-                                  runDB $ update (entityKey (a)) [DevicesRegId =. regId ]
-                                  sendResponse $ RepJson emptyContent
-                       False -> invalidArgs []
+                        True  -> do
+                                    runDB $ update (entityKey (a)) [DevicesRegId =. regId ]
+                                    sendResponse $ RepJson emptyContent
+                        False -> invalidArgs []
 
 
 -- 'postFromDevicesR' receives the messages sent by registered devices. (POST messages to '/fromdevices')
@@ -91,8 +98,8 @@ postFromdevicesR = do
     msg <- runInputPost $ ireq textField "message"
     usr <- runInputPost $ ireq textField "user"
     pass <- runInputPost $ ireq textField "password"
-    persona <- runDB $ getBy $ UniqueUser usr
-    case persona of
+    device <- runDB $ getBy $ UniqueUser usr
+    case device of
         Nothing -> permissionDenied empty
         Just a	-> case devicesPassword (entityVal (a)) == pass of
                        True  -> permissionDenied empty -- to be changed ...
@@ -106,16 +113,66 @@ postFromWebR = do
     Messages _ gcmappConfig <- getYesod
     list <- runDB $ selectList [] [Desc DevicesRegId]
     let regIdsList = map (\a -> devicesRegId(entityVal a)) list
-    gcmResult <- liftIO $ CE.catch
-             (sendGCM gcmappConfig def{registration_ids = Just regIdsList , data_object = Just (fromList [(pack "Message" .= msg)]) } 5)
-             (\e -> do
-                        let _ = (e :: CE.SomeException)
-                        fail "Problem communicating with GCM Server")
-    handleResult gcmResult
+    if regIdsList /= []
+    then do 
+            let gcmMessage = def{registration_ids = Just regIdsList , data_object = Just (fromList [(pack "Message" .= msg)]) }
+            gcmResult <- liftIO $ CE.catch -- I catch IO exceptions to avoid showing unsecure information.
+                        (sendGCM gcmappConfig gcmMessage 5)
+                        (\e -> do
+                                    let _ = (e :: CE.SomeException)
+                                    fail "Problem communicating with GCM Server")
+            handleResult gcmMessage gcmResult
+    else do
+            return ()
     redirect RootR
 
-handleResult :: GCMresult -> Handler ()
-handleResult msg = return () -- to be continued ...                      
+handleResult :: GCMmessage -> GCMresult -> GHandler Messages Messages ()
+handleResult msg res = do
+                        handleNewRegIDs $ newRegids res
+                        handleUnRegistered $ errorUnRegistered res
+                        handleToResend msg $ errorToReSend res
+                        handleRest $ errorRest res
+                        
+
+handleNewRegIDs :: [(RegId,RegId)] -> GHandler Messages Messages ()
+handleNewRegIDs newRegIDs = do
+                        liftIO (putStr ("\nHANDLING NEWREGIDS: "++(show newRegIDs)++"\n"))
+                        let replaceOldRegId (old,new) = do
+                                            dev  <-  runDB $ getBy $ UniqueRegId old
+                                            case dev of
+                                                Just x  ->  runDB $ update (entityKey (x)) [DevicesRegId =. new ]
+                                                Nothing ->  return ()
+                        foldr (>>) (return ()) $ map replaceOldRegId $ newRegIDs
+
+handleUnRegistered :: [RegId] -> GHandler Messages Messages ()
+handleUnRegistered unRegIDs = do
+                        liftIO (putStr ("\nHANDLING UNREGISTERED: "++(show unRegIDs)++"\n"))
+                        let removeUnRegUser regid = runDB $ deleteBy $ UniqueRegId regid
+                        foldr (>>) (return ()) $ map removeUnRegUser $ unRegIDs
+
+-- I decide to unregister all regId with error different to Unregistered or Unavailable.
+-- Because these are non-recoverable error.
+handleRest :: [(RegId,Text)] -> GHandler Messages Messages ()
+handleRest rest = do
+                    liftIO (putStr ("\nHANDLING RESTERROR: "++(show rest)++"\n"))
+                    let removeUnRegUser (regid,_) = runDB $ deleteBy $ UniqueRegId regid
+                    foldr (>>) (return ()) $ map removeUnRegUser $ rest
+
+handleToResend :: GCMmessage -> [RegId] -> GHandler Messages Messages ()
+handleToResend msg list = do
+                    liftIO (putStr ("\nHANDLING TORESEND: "++(show list)++"\n"))
+                    if list /= []
+                    then do
+                        Messages _ gcmappConfig <- getYesod
+                        gcmResult <- liftIO $ CE.catch -- I catch IO exceptions to avoid showing unsecure information.
+                                    (sendGCM gcmappConfig msg{registration_ids = Just list} 5)
+                                    (\e -> do
+                                                let _ = (e :: CE.SomeException)
+                                                fail "Problem communicating with GCM Server")
+                        handleResult msg{registration_ids = Just list} gcmResult
+                    else do
+                        return ()
+
 
 main :: IO ()
 main = do
