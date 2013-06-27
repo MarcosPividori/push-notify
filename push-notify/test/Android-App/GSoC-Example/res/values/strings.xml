@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+
+    <string name="app_name">GSoC-Example</string>
+    <string name="no_messages">No Messages!\n</string>
+    <string name="menu_settings">Settings</string>
+    <string name="server_registering">Trying (attempt %1$d/%2$d) to register device on Demo Server.</string>
+    <string name="server_registered">From Demo Server: successfully added device!</string>
+    <string name="server_register_error">Could not register device on Demo Server after %1$d attempts.</string>
+    <string name="options_clear">Clear</string>
+    <string name="options_exit">Exit</string>    
+</resources>
