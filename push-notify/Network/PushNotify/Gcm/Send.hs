@@ -94,23 +94,28 @@ handleSucessfulResponse resValue msg =
                      ,   success       = getValue cSUCESS a
                      ,   failure       = getValue cFAILURE a
                      ,   canonical_ids = getValue cCANONICAL_IDS a
-                     ,   results       = let
-                                            f x = case (getValue cMESSAGE_ID x) :: Maybe Text of
-                                                     Just xs ->  GCMOk xs
-                                                     Nothing ->  case (getValue cERROR x) :: Maybe Text of
-                                                                    Just y  -> GCMError y
-                                                                    Nothing -> GCMError ""
-                                         in map f list
                      ,   newRegids     = let
                                             g (x,list') = case (getValue cREGISTRATION_ID list') :: Maybe RegId of
                                                              Just xs ->  (x,xs)
                                                              Nothing ->  (x,empty)
-                                         in filter (\(x,y) -> y /= empty) $ map g mapMsg
-                     ,   unRegistered  = let
-                                            g (x,list') = ((getValue cERROR list') :: Maybe Text) == Just cNOT_REGISTERED
-                                         in map fst $ filter g mapMsg
-                     ,   toReSend      = let
+                                         in filter (\(_,y) -> y /= empty) $ map g mapMsg
+                     ,   messagesIds   = let
+                                            g (x,list') = case (getValue cMESSAGE_ID list') :: Maybe Text of
+                                                             Just xs ->  (x,xs)
+                                                             Nothing ->  (x,empty)
+                                         in filter (\(_,y) -> y /= empty) $ map g mapMsg
+                     ,   errorUnRegistered  = let
+                                                g (x,list') = ((getValue cERROR list') :: Maybe Text) == Just cNOT_REGISTERED
+                                              in map fst $ filter g mapMsg
+                     ,   errorToReSend = let
                                             g (x,list') = ((getValue cERROR list') :: Maybe Text) == Just cUNAVAILABLE
                                          in map fst $ filter g mapMsg
+                     ,   errorRest     = let
+                                            g (x,list') = case (getValue cERROR list') :: Maybe Text of
+                                                             Just xs -> if xs /= cUNAVAILABLE && xs /= cNOT_REGISTERED
+                                                                        then (x,xs)
+                                                                        else (x,empty)
+                                                             Nothing -> (x,empty)
+                                         in filter (\(_,y) -> y /= empty) $ map g mapMsg
                      }
            _      -> fail "Error parsing Response"

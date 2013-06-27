@@ -5,7 +5,6 @@ module Network.PushNotify.Gcm.Types
     ( GCMAppConfig(..)
     , GCMmessage(..)
     , GCMresult(..)
-    , MRes(..)
     , RegId
     , Notif_key
     , Notif_key_name
@@ -34,8 +33,8 @@ type Notif_key_name = Text
 -- | 'GCMmessage' represents a message to be sent through GCM.
 data GCMmessage = GCMmessage
     {   registration_ids :: Maybe [RegId]
-    ,   notification_key :: Maybe Notif_key -- Need to be continued, this is a new option added in the Google IO 2013
-    ,   notification_key_name :: Maybe Notif_key_name -- this too.
+    --,   notification_key :: Maybe Notif_key -- Need to be continued, this is a new option added in the Google IO 2013
+    --,   notification_key_name :: Maybe Notif_key_name -- this too.
     ,   collapse_key :: Maybe Text
     ,   data_object :: Maybe Object
     ,   delay_while_idle :: Bool
@@ -47,8 +46,8 @@ data GCMmessage = GCMmessage
 instance Default GCMmessage where
     def = GCMmessage {
         registration_ids = Nothing
-    ,   notification_key = Nothing
-    ,   notification_key_name = Nothing
+    --,   notification_key = Nothing
+    --,   notification_key_name = Nothing
     ,   collapse_key = Nothing
     ,   data_object = Nothing
     ,   delay_while_idle = False
@@ -57,11 +56,6 @@ instance Default GCMmessage where
     ,   dry_run = False
     }
 
--- | 'MRes' represents information about a message which was sent.
-data MRes = GCMError Text
-          | GCMOk Text
-            deriving Show
-
 
 -- | 'GCMresult' represents information about messages after a communication with GCM Servers.
 data GCMresult = GCMresult
@@ -69,11 +63,12 @@ data GCMresult = GCMresult
     ,   success :: Maybe Int
     ,   failure :: Maybe Int
     ,   canonical_ids :: Maybe Int
-    ,   results :: [MRes]
-    ,   newRegids :: [(RegId,RegId)] -- ^ regIds that need to be replaced.
-    ,   unRegistered :: [RegId] -- ^ regIds that need to be removed.
-    ,   toReSend :: [RegId] -- ^ regIds that I need to resend the message to,
-                            -- because there was an internal problem in the GCM servers.
+    ,   newRegids :: [(RegId,RegId)] -- regIds that need to be replaced.
+    ,   messagesIds :: [(RegId,Text)] -- Successful RegIds, and its message_id
+    ,   errorUnRegistered :: [RegId] -- Failed regIds that need to be removed.
+    ,   errorToReSend :: [RegId] -- Failed regIds that I need to resend the message to,
+                                 -- because there was an internal problem in the GCM servers.
+    ,   errorRest :: [(RegId,Text)] -- Failed regIds with the rest of the possible errors (probably a non-recoverable errors)
     } deriving Show
 
 instance Default GCMresult where
@@ -82,10 +77,11 @@ instance Default GCMresult where
     ,   success = Nothing
     ,   failure = Nothing
     ,   canonical_ids = Nothing
-    ,   results = []
     ,   newRegids = []
-    ,   unRegistered = []
-    ,   toReSend = []
+    ,   messagesIds = []
+    ,   errorUnRegistered = []
+    ,   errorToReSend = []
+    ,   errorRest = []
     }
 
 
