@@ -6,8 +6,8 @@ module Network.PushNotify.Gcm.Types
     , GCMmessage(..)
     , GCMresult(..)
     , RegId
-    , Notif_key
-    , Notif_key_name
+    --, Notif_key
+    --, Notif_key_name
     ) where
 
 
@@ -21,13 +21,13 @@ import Control.Monad.Writer
 -- | 'GCMAppConfig' represents the main necessary information for sending notifications through GCM.
 data GCMAppConfig = GCMAppConfig
     {   apiKey :: Text
-    ,   projectId :: Text
+    -- ,   projectId :: Text
     }   deriving Show
 
 
 type RegId = Text
-type Notif_key = Text
-type Notif_key_name = Text
+--type Notif_key = Text
+--type Notif_key_name = Text
 
 
 -- | 'GCMmessage' represents a message to be sent through GCM.
@@ -97,8 +97,8 @@ ifNotDef label f msg = if f def /= f msg
 instance ToJSON GCMmessage where
     toJSON msg = object $ execWriter $ do
                                         ifNotDef cREGISTRATION_IDS registration_ids msg
-                                        ifNotDef cNOTIFICATION_KEY notification_key msg
-                                        ifNotDef cNOTIFICATION_KEY_NAME notification_key_name msg
+                                        --ifNotDef cNOTIFICATION_KEY notification_key msg
+                                        --ifNotDef cNOTIFICATION_KEY_NAME notification_key_name msg
                                         ifNotDef cTIME_TO_LIVE time_to_live msg
                                         ifNotDef cDATA data_object msg
                                         ifNotDef cCOLLAPSE_KEY collapse_key msg

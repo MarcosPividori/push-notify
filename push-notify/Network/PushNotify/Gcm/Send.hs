@@ -30,6 +30,7 @@ import qualified Data.ByteString.Char8 as B
 retrySettingsGCM = RetrySettings {
     backoff = True
 ,   baseDelay = 100
+,   numRetries = limitedRetries 1
 }
 
 -- | 'sendGCM' sends the message through a GCM Server.

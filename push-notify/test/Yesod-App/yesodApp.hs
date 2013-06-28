@@ -1,3 +1,6 @@
+-- Test Example for GCM Api.
+-- This is a simple example of a Yesod server, where devices can register to receive
+-- GCM messages and users can send messages through the web service.
 
 {-# LANGUAGE OverloadedStrings, TypeFamilies, TemplateHaskell,
              QuasiQuotes, MultiParamTypeClasses, GeneralizedNewtypeDeriving, FlexibleContexts, GADTs #-}
@@ -5,7 +8,8 @@
 import Yesod
 import Database.Persist.Sqlite
 import Data.Text.Internal           (empty)
-import Data.Text                    (Text,pack,unpack)
+import Data.Text                    (Text,pack,unpack,append)
+import qualified Data.Text          as T
 import Data.Default
 import Data.HashMap.Strict          (fromList)
 import Control.Monad.Trans.Resource (runResourceT)
@@ -13,6 +17,10 @@ import Control.Monad.IO.Class       (liftIO)
 import Network.PushNotify.Gcm.Types
 import Network.PushNotify.Gcm.Send
 import qualified Control.Exception  as CE
+import Data.Aeson.Types
+import Data.Monoid                  ((<>))
+
+-- Data Base:
 
 share [mkPersist sqlSettings, mkMigrate "migrateAll"] [persist|
 Devices
@@ -24,6 +32,7 @@ Devices
     deriving Show
 |]
 
+-- Yesod App:
 
 data Messages = Messages {
                             connectionPool :: ConnectionPool -- Connection to the Database.
@@ -34,10 +43,10 @@ data Messages = Messages {
 mkYesod "Messages" [parseRoutes|
 / RootR GET
 /register RegisterR POST
-/fromdevices FromdevicesR POST
 /fromweb FromWebR POST
 |]
 
+-- Instances:
 
 instance Yesod Messages where
     approot = ApprootStatic "http://192.168.0.52:3000" -- Here you must complete with the correct route.
@@ -51,29 +60,45 @@ instance YesodPersist Messages where
 instance RenderMessage Messages FormMessage where
     renderMessage _ _ = defaultFormMessage
 
+
 -- Handlers:
 
+-- 'getRootR' provides the main page.
 getRootR :: Handler RepHtml
-getRootR = defaultLayout $ do
+getRootR = do
+                his   <- lookupSession "history"
+                list  <- runDB $ selectList [] [Desc DevicesUser]
+                users <- return $ map (\a -> devicesUser(entityVal a)) list
+                defaultLayout $ do
                                 setTitle "Just a test example."
                                 toWidget [hamlet|
-<div id="main">
-                <li><a>
+                        $maybe msg <- his
+                            <br><b>History:</b><br>
+                            $forall message <- T.lines msg
+                                <li>#{message}
+                            <form method=post action=@{FromWebR}>
+                                <input type="hidden" name="clear" value="clear" /> 
+                                <input type=submit style="font-weight:bold;" value="Clear">
+                        <br><b>Select a user:</b><br>
                         <form method=post action=@{FromWebR}>
+                            $forall user <- users
+                                <input type="radio" name="destination" value=#{user}> #{user} <br>
+                            <input type="radio" name="destination" value="EveryOne" checked="yes" > Just to every one! <br>
+                            <br><b>Write a message:</b><br>
                             <input type="text" name="message" />
                             <input type=submit style="font-weight:bold;" value="Send">
 |]
 
 
 -- 'postRegister' allows a mobile device register. (POST messages to '/register')
--- Receives a user name, and regId provided by a GCM Server.
+-- Receives a user name, password and a regId provided by a GCM Server.
 postRegisterR :: Handler ()
 postRegisterR = do
     regId <- runInputPost $ ireq textField "regId"
     usr <- runInputPost $ ireq textField "user"
     pass <- runInputPost $ ireq textField "password"
     device <- runDB $ getBy $ UniqueUser usr
-    liftIO (putStr ("\nREGISTRO:\n-USUARIO: "++(unpack usr)++"\n-PASSWORD: "++ (unpack pass)++"\n-REG ID: "++ (unpack regId)++"\n"))
+    $(logInfo) ("\nIntent for a new user!:\n-User: "<> usr <>"\n-Password: "<> pass <>"\n-Red ID: "<> regId <>"\n")
     case device of
         Nothing -> do
                         dev  <-  runDB $ getBy $ UniqueRegId regId
@@ -85,33 +110,31 @@ postRegisterR = do
                                             runDB $ insert $ Devices usr pass regId
                                             sendResponse $ RepJson emptyContent
         Just a	-> case devicesPassword (entityVal (a)) == pass of
-                        True  -> do
+                        True  -> do -- regId has changed.
                                     runDB $ update (entityKey (a)) [DevicesRegId =. regId ]
                                     sendResponse $ RepJson emptyContent
                         False -> invalidArgs []
 
-
--- 'postFromDevicesR' receives the messages sent by registered devices. (POST messages to '/fromdevices')
---  Authenticates devices through its user name and password.
-postFromdevicesR :: Handler ()
-postFromdevicesR = do
-    msg <- runInputPost $ ireq textField "message"
-    usr <- runInputPost $ ireq textField "user"
-    pass <- runInputPost $ ireq textField "password"
-    device <- runDB $ getBy $ UniqueUser usr
-    case device of
-        Nothing -> permissionDenied empty
-        Just a	-> case devicesPassword (entityVal (a)) == pass of
-                       True  -> permissionDenied empty -- to be changed ...
-                       False -> permissionDenied empty
-
-
 -- 'postFromWebR' receives messages from the website user. (POST messages to '/fromweb')
 postFromWebR :: Handler ()
 postFromWebR = do
-    msg <- runInputPost $ ireq textField "message"
+  cl <- runInputPost $ iopt textField "clear"
+  case cl of
+   Just _ -> do
+                    deleteSession "history"
+                    redirect RootR
+   _      -> do
+    msg <- runInputPost $ ireq textField "message" 
+    dest <- runInputPost $ ireq textField "destination"
+    list <- case dest of
+                    "EveryOne"  ->  runDB $ selectList [] [Desc DevicesRegId]
+                    usr         ->  do
+                                        res <- runDB $ getBy $ UniqueUser usr
+                                        case res of
+                                            Just a  -> return [a]
+                                            Nothing -> return []
     Messages _ gcmappConfig <- getYesod
-    list <- runDB $ selectList [] [Desc DevicesRegId]
+    $(logInfo) ("\tA new message: \""<>msg<>"\"\t")
     let regIdsList = map (\a -> devicesRegId(entityVal a)) list
     if regIdsList /= []
     then do 
@@ -124,8 +147,13 @@ postFromWebR = do
             handleResult gcmMessage gcmResult
     else do
             return ()
+    his <- lookupSession "history"
+    case his of
+        Just m  -> setSession "history" (m <> "\n" <> msg)
+        Nothing -> setSession "history" msg
     redirect RootR
 
+-- Handle the result of the communication with the GCM Server.
 handleResult :: GCMmessage -> GCMresult -> GHandler Messages Messages ()
 handleResult msg res = do
                         handleNewRegIDs $ newRegids res
@@ -133,10 +161,10 @@ handleResult msg res = do
                         handleToResend msg $ errorToReSend res
                         handleRest $ errorRest res
                         
-
+-- Handle the regIds that have changed, I neew to actualize the DB.
 handleNewRegIDs :: [(RegId,RegId)] -> GHandler Messages Messages ()
 handleNewRegIDs newRegIDs = do
-                        liftIO (putStr ("\nHANDLING NEWREGIDS: "++(show newRegIDs)++"\n"))
+                        $(logInfo) ("\tHandling NewRegIds: "<>pack (show newRegIDs)<>"\t")
                         let replaceOldRegId (old,new) = do
                                             dev  <-  runDB $ getBy $ UniqueRegId old
                                             case dev of
@@ -144,9 +172,10 @@ handleNewRegIDs newRegIDs = do
                                                 Nothing ->  return ()
                         foldr (>>) (return ()) $ map replaceOldRegId $ newRegIDs
 
+-- Handle the regIds that have been unregistered, I neew to remove them from the DB. (Unregistered error)
 handleUnRegistered :: [RegId] -> GHandler Messages Messages ()
 handleUnRegistered unRegIDs = do
-                        liftIO (putStr ("\nHANDLING UNREGISTERED: "++(show unRegIDs)++"\n"))
+                        $(logInfo) ("\tHandling UnRegistered: "<>pack (show unRegIDs)<>"\t")
                         let removeUnRegUser regid = runDB $ deleteBy $ UniqueRegId regid
                         foldr (>>) (return ()) $ map removeUnRegUser $ unRegIDs
 
@@ -154,13 +183,14 @@ handleUnRegistered unRegIDs = do
 -- Because these are non-recoverable error.
 handleRest :: [(RegId,Text)] -> GHandler Messages Messages ()
 handleRest rest = do
-                    liftIO (putStr ("\nHANDLING RESTERROR: "++(show rest)++"\n"))
+                    $(logInfo) ("\tHandling RestError: "<>pack (show rest)<>"\t")
                     let removeUnRegUser (regid,_) = runDB $ deleteBy $ UniqueRegId regid
                     foldr (>>) (return ()) $ map removeUnRegUser $ rest
 
+-- Handle the regIds that I need to resend because of an internal server error. (Unavailable error)
 handleToResend :: GCMmessage -> [RegId] -> GHandler Messages Messages ()
 handleToResend msg list = do
-                    liftIO (putStr ("\nHANDLING TORESEND: "++(show list)++"\n"))
+                    $(logInfo) ("\tHandling ToReSend: "<>pack (show list)<>"\t")
                     if list /= []
                     then do
                         Messages _ gcmappConfig <- getYesod
@@ -176,9 +206,6 @@ handleToResend msg list = do
 
 main :: IO ()
 main = do
- runResourceT $ withSqlitePool "DevicesDateBase.db3" openConnectionCount $ \pool -> do
+ runResourceT $ withSqlitePool "DevicesDateBase.db3" 10 $ \pool -> do
     runSqlPool (runMigration migrateAll) pool
-    liftIO $ warpDebug 3000 $ Messages pool GCMAppConfig{apiKey = "key="}
-
-openConnectionCount :: Int
-openConnectionCount = 10
+    liftIO $ warpDebug 3000 $ Messages pool GCMAppConfig{apiKey = "key="} -- Here you must complete with the correct Api Key provided by Google.
