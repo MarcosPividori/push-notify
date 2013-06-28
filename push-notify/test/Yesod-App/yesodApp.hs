@@ -1,11 +1,13 @@
 -- Test Example for GCM Api.
 -- This is a simple example of a Yesod server, where devices can register to receive
 -- GCM messages and users can send messages through the web service.
+-- Before running this app, its necessary to complete the "approot" and the "apiKey" with the proper values.
 
 {-# LANGUAGE OverloadedStrings, TypeFamilies, TemplateHaskell,
              QuasiQuotes, MultiParamTypeClasses, GeneralizedNewtypeDeriving, FlexibleContexts, GADTs #-}
 
 import Yesod
+import Yesod.Static
 import Database.Persist.Sqlite
 import Data.Text.Internal           (empty)
 import Data.Text                    (Text,pack,unpack,append)
@@ -32,34 +34,37 @@ Devices
     deriving Show
 |]
 
+
 -- Yesod App:
+
+staticFiles "static"
 
 data Messages = Messages {
                             connectionPool :: ConnectionPool -- Connection to the Database.
+                         ,  getStatic :: Static -- ^ Reference point of the static data.
                          ,  gcmAppConfig :: GCMAppConfig -- GCM configuration.
                          }
-
 
 mkYesod "Messages" [parseRoutes|
 / RootR GET
 /register RegisterR POST
 /fromweb FromWebR POST
+/static StaticR Static getStatic
 |]
 
 -- Instances:
 
 instance Yesod Messages where
-    approot = ApprootStatic "http://192.168.0.52:3000" -- Here you must complete with the correct route.
+    approot = ApprootStatic "" -- Here you must complete with the correct route.
 
 instance YesodPersist Messages where
     type YesodPersistBackend Messages = SqlPersist
     runDB action = do
-        Messages pool _ <- getYesod
+        Messages pool _ _ <- getYesod
         runSqlPool action pool
 
 instance RenderMessage Messages FormMessage where
     renderMessage _ _ = defaultFormMessage
-
 
 -- Handlers:
 
@@ -133,7 +138,7 @@ postFromWebR = do
                                         case res of
                                             Just a  -> return [a]
                                             Nothing -> return []
-    Messages _ gcmappConfig <- getYesod
+    Messages _ _ gcmappConfig <- getYesod
     $(logInfo) ("\tA new message: \""<>msg<>"\"\t")
     let regIdsList = map (\a -> devicesRegId(entityVal a)) list
     if regIdsList /= []
@@ -193,7 +198,7 @@ handleToResend msg list = do
                     $(logInfo) ("\tHandling ToReSend: "<>pack (show list)<>"\t")
                     if list /= []
                     then do
-                        Messages _ gcmappConfig <- getYesod
+                        Messages _ _ gcmappConfig <- getYesod
                         gcmResult <- liftIO $ CE.catch -- I catch IO exceptions to avoid showing unsecure information.
                                     (sendGCM gcmappConfig msg{registration_ids = Just list} 5)
                                     (\e -> do
@@ -208,4 +213,6 @@ main :: IO ()
 main = do
  runResourceT $ withSqlitePool "DevicesDateBase.db3" 10 $ \pool -> do
     runSqlPool (runMigration migrateAll) pool
-    liftIO $ warpDebug 3000 $ Messages pool GCMAppConfig{apiKey = "key="} -- Here you must complete with the correct Api Key provided by Google.
+    liftIO $ do
+                static@(Static settings) <- static "static"
+                warpDebug 3000 $ Messages pool static GCMAppConfig{apiKey = "key="} -- Here you must complete with the correct Api Key provided by Google.
