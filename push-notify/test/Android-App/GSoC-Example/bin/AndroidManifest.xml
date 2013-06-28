@@ -40,7 +40,7 @@
             </intent-filter>
         </activity>
         
-        <activity android:name="Register"></activity>
+        <activity android:name="com.example.gsoc_example.Register" android:launchMode= "singleTop"></activity>
     </application>
 
 </manifest>

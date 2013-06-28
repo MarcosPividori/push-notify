@@ -7,11 +7,11 @@ import android.content.Intent;
 public final class CommonUtilities {
 	
 	//URL of the server.
-	static final String SERVER_URL = "http://192.168.0.52:3000";
+	static final String SERVER_URL = ""; // You must complete with the server URL
 
     //Google API project id registered.
 	/** Substitute you own sender ID here. */
-    static final String SENDER_ID = "";
+    static final String SENDER_ID = "";// You must complete with the PROJECT ID
 
     //Intent used for showing messages on the screen.
     static final String DISPLAY_MESSAGE_ACTION =

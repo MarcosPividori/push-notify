@@ -2,7 +2,6 @@ package com.example.gsoc_example;
 
 import java.io.IOException;
 import java.sql.Timestamp;
-import java.util.concurrent.atomic.AtomicInteger;
 
 import android.os.AsyncTask;
 import android.os.Bundle;
@@ -14,8 +13,6 @@ import android.content.DialogInterface;
 import android.content.Intent;
 import android.content.IntentFilter;
 import android.content.SharedPreferences;
-import android.content.pm.PackageInfo;
-import android.content.pm.PackageManager.NameNotFoundException;
 import android.util.Log;
 import android.view.Menu;
 import android.view.MenuItem;
@@ -29,7 +26,6 @@ public class MainActivity extends Activity {
 
 	public static final String EXTRA_MESSAGE = "message";
     public static final String PROPERTY_REG_ID = "registration_id";
-    private static final String PROPERTY_APP_VERSION = "appVersion";
     private static final String PROPERTY_ON_SERVER_EXPIRATION_TIME = "onServerExpirationTimeMs";
     
     // Default lifespan (7 days) of a reservation until it is considered expired.
@@ -40,7 +36,6 @@ public class MainActivity extends Activity {
 
     TextView mDisplay;
     GoogleCloudMessaging gcm;
-    AtomicInteger msgId = new AtomicInteger();
     
     SharedPreferences prefs;
     Context context;
@@ -58,14 +53,15 @@ public class MainActivity extends Activity {
                 new IntentFilter(DISPLAY_MESSAGE_ACTION));
         
         prefs = getSharedPreferences(MainActivity.class.getSimpleName(),Context.MODE_PRIVATE);
+        
         registered = prefs.getBoolean("registered", false);
         user = prefs.getString("user","");
         password = prefs.getString("user","");
-        String historial = prefs.getString("historial","No Messages!");
+        
+        String historial = prefs.getString("historial","No Messages!\n");
              
         mDisplay = (TextView) findViewById(R.id.display);
-        
-        mDisplay.append(historial+"\n");
+        mDisplay.append(historial);
         
         context = getApplicationContext();
         regid = getRegistrationId(context);
@@ -93,7 +89,7 @@ public class MainActivity extends Activity {
     
     @Override
     public boolean onCreateOptionsMenu(Menu menu) {
-        // Inflate the menu; this adds items to the action bar if it is present.
+        // Inflate the menu, this adds items to the action bar if it is present.
         getMenuInflater().inflate(R.menu.activity_main, menu);
         return true;
     }
@@ -155,27 +151,12 @@ public class MainActivity extends Activity {
             Log.v(TAG, "Registration not found.");
             return "";
         }
-        // check if app was updated; if so, it must clear registration id to
-        // avoid a race condition if GCM sends a message
-        int registeredVersion = prefs.getInt(PROPERTY_APP_VERSION, Integer.MIN_VALUE);
-        int currentVersion = getAppVersion(context);
-        if (registeredVersion != currentVersion || isRegistrationExpired()) {
-            Log.v(TAG, "App version changed or registration expired.");
+        // check if registration expired.
+        if (isRegistrationExpired()) {
+            Log.v(TAG, "registration expired.");
             return "";
         }
         return registrationId;
-    }
-  
-    // return Application's version code from the PackageManager
-    private static int getAppVersion(Context context) {
-        try {
-            PackageInfo packageInfo = context.getPackageManager()
-                    .getPackageInfo(context.getPackageName(), 0);
-            return packageInfo.versionCode;
-        } catch (NameNotFoundException e) {
-            // should never happen
-            throw new RuntimeException("Could not get package name: " + e);
-        }
     }
     
     // Checks if the registration has expired.
@@ -190,7 +171,7 @@ public class MainActivity extends Activity {
     }
     
     // Registers the application with GCM servers asynchronously.
-    // Stores the registration id, app versionCode, and expiration time in the 
+    // Stores the registration id, and expiration time in the 
     // application's shared preferences.
     private void registerBackground() {
         new AsyncTask<Void,Void,String>() {
@@ -247,14 +228,12 @@ public class MainActivity extends Activity {
     	}.execute(null,null,null);
     }
     
-    // Stores the registration id, app versionCode, and expiration time in the
+    // Stores the registration id and expiration time in the
     // application's SharedPreferences.
     private void setRegistrationId(Context context, String regId) {
-        int appVersion = getAppVersion(context);
-        Log.v(TAG, "Saving regId on app version " + appVersion);
         SharedPreferences.Editor editor = prefs.edit();
         editor.putString(PROPERTY_REG_ID, regId);
-        editor.putInt(PROPERTY_APP_VERSION, appVersion);
+
         long expirationTime = System.currentTimeMillis() + REGISTRATION_EXPIRY_TIME_MS;
 
         Log.v(TAG, "Setting registration expiry time to " +
