@@ -10,16 +10,18 @@ import android.widget.EditText;
 import android.widget.TextView;
 import android.content.Intent;
 
-// Activity to register user and password.
+// Activity to register user, password and server_url where the device should register.
 public class Register extends Activity {
 	
 	private String mUser;
 	private String mPassword;
+	private String mServerUrl;
 
 	// UI references.
 	private EditText mUserView;
 	private EditText mPasswordView;
-
+	private EditText mServerUrlView;
+	
 	@Override
 	protected void onCreate(Bundle savedInstanceState) {
 		super.onCreate(savedInstanceState);
@@ -30,7 +32,10 @@ public class Register extends Activity {
 		mUserView.setText(mUser);
 
 		mPasswordView = (EditText) findViewById(R.id.password);
-		mPasswordView
+		mPasswordView.setText(mPassword);
+		
+		mServerUrlView = (EditText) findViewById(R.id.server_url);
+		mServerUrlView
 				.setOnEditorActionListener(new TextView.OnEditorActionListener() {
 					@Override
 					public boolean onEditorAction(TextView textView, int id,
@@ -59,10 +64,12 @@ public class Register extends Activity {
 		// Reset errors.
 		mUserView.setError(null);
 		mPasswordView.setError(null);
+		mServerUrlView.setError(null);
 
 		// Save values.
 		mUser = mUserView.getText().toString();
 		mPassword = mPasswordView.getText().toString();
+		mServerUrl = mServerUrlView.getText().toString();
 
 		boolean cancel = false;
 		View focusView = null;
@@ -89,6 +96,13 @@ public class Register extends Activity {
 			cancel = true;
 		}
 
+		// Check for a valid server_url.
+		if (TextUtils.isEmpty(mServerUrl)) {
+			mServerUrlView.setError(getString(R.string.error_field_required));
+			focusView = mServerUrlView;
+			cancel = true;
+		}
+				
 		if (cancel) {
 			// There is an error, so registration does not success and focus on the error.
 			focusView.requestFocus();
@@ -97,6 +111,7 @@ public class Register extends Activity {
 			Intent i = getIntent();
 			i.putExtra("USER",mUser);
 			i.putExtra("PASSWORD",mPassword);
+			i.putExtra("SERVER_URL",mServerUrl);
 			setResult(RESULT_OK,i);
 			finish();
 		}

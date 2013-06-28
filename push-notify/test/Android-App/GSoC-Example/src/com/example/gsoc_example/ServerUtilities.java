@@ -1,6 +1,5 @@
 package com.example.gsoc_example;
 
-import static com.example.gsoc_example.CommonUtilities.SERVER_URL;
 import static com.example.gsoc_example.CommonUtilities.displayMessage;
 
 import java.io.IOException;
@@ -28,10 +27,9 @@ public final class ServerUtilities {
     static final String TAG = "GSoC-Example-ServerUtilities";
     
     //Register this device in the server.
-    static boolean register(final Context context,String regId,String user,String password) {
+    static boolean register(final Context context,String regId,String user,String password,String serverUrl) {
     	  	
-    	Log.i(TAG, "registering device (regId = " + regId + ")");      
-        String serverUrl = SERVER_URL + "/register";
+    	Log.i(TAG, "registering device (regId = " + regId + ")");
         Map<String, String> params = new HashMap<String, String>();
         params.put("regId", regId);
         params.put("user", user);

@@ -40,7 +40,7 @@ public class MainActivity extends Activity {
     SharedPreferences prefs;
     Context context;
 
-    String regid,user,password;
+    String regid,user,password,server_url;
     Boolean registered;
     AlertDialog dialog;
 
@@ -57,6 +57,7 @@ public class MainActivity extends Activity {
         registered = prefs.getBoolean("registered", false);
         user = prefs.getString("user","");
         password = prefs.getString("user","");
+        server_url = prefs.getString("server_url","");
         
         String historial = prefs.getString("historial","No Messages!\n");
              
@@ -133,9 +134,11 @@ public class MainActivity extends Activity {
     	if(requestCode == 1000){
     		user = data.getStringExtra("USER");
     		password = data.getStringExtra("PASSWORD");
+    		server_url = data.getStringExtra("SERVER_URL");
     		SharedPreferences.Editor editor = prefs.edit();
     	    editor.putString("user", user);
     	    editor.putString("password", password);
+    	    editor.putString("server_url", server_url);
     	    // Commit the edits!
     	    editor.commit();
     	    sendInfoToServer();
@@ -216,7 +219,7 @@ public class MainActivity extends Activity {
 
     		@Override
     		protected Boolean doInBackground(Void... parameters) {
-    			return ServerUtilities.register(context,regid,user,password);
+    			return ServerUtilities.register(context,regid,user,password,server_url);
     		}
     		protected void onPostExecute(Boolean result) {
     			registered = result;
