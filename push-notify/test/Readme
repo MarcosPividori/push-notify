@@ -1,0 +1,32 @@
+This is a simple example of a Yesod server using the PushNotify api for GCM,
+(Network.PushNotify.Gcm) where devices can register to receive GCM messages
+and users can send messages through the web service. This is compound of:
+
+* a Yesod app for registering the devices and sending push notifications.
+* an Android app for registering on GCM and receiving the notifications.
+
++ About the Yesod App:
+
+Before running the Yesod app, you need to complete the "approot" and the 
+"apiKey" with the proper values.
+The API Key is provided by Google. You need to start a project at Google Apis
+and enable the GCM service. (https://code.google.com/apis/console)
+
++ About the android app:
+
+When started it gets its RegId, then it asks you for a username, a password 
+and a "Registration URL". This registration url would be something like: 
+"http://192.168.0.52:3000/register". I added this as a field to be filled,
+in order to avoid compiling the android app each time we try the Yesod app
+in a different IP. (If you will upload the yesod app to a hosting, you can
+replace it as a constant value in the android app.)
+So, to try the android app you need to complete the "SENDER_ID" field in the
+CommonUtilities.java file of the Android project and compile it. (This is the
+Project ID you get from Google Apis.) Once you have the .apk file you can put 
+it in the Static folder of the Yesod app. So, to start using it:
+ * In the device, settings, applications , you need to allow unknown sources.
+ * In the web browser download the app from : http:/...../static/GSoC-Example.apk
+ * Install it.
+
+NOTE: The Android app is based on some examples provided by google in the Android
+developers site.
