@@ -40,8 +40,8 @@ public class MainActivity extends Activity {
     SharedPreferences prefs;
     Context context;
 
-    String regid,user,password,server_url;
-    Boolean registered;
+    String regid,user,password;
+    Boolean registered,onProcessOfRegistration;
     AlertDialog dialog;
 
     @Override
@@ -55,9 +55,9 @@ public class MainActivity extends Activity {
         prefs = getSharedPreferences(MainActivity.class.getSimpleName(),Context.MODE_PRIVATE);
         
         registered = prefs.getBoolean("registered", false);
+        onProcessOfRegistration = prefs.getBoolean("onProcessOfRegistration", false);
         user = prefs.getString("user","");
         password = prefs.getString("user","");
-        server_url = prefs.getString("server_url","");
         
         String historial = prefs.getString("historial","No Messages!\n");
              
@@ -67,18 +67,22 @@ public class MainActivity extends Activity {
         context = getApplicationContext();
         regid = getRegistrationId(context);
         
-        if (regid.length() == 0) {
-            registerBackground();
-        }else{
-        	if (user.length() == 0) {//Not registered
-                Intent intent = new Intent(context, Register.class);
-                startActivityForResult(intent,1000);
-            }
-            else
-            	if(!registered)
-            		sendInfoToServer();        	
+        if(!onProcessOfRegistration){
+        	SharedPreferences.Editor editor = prefs.edit();
+			editor.putBoolean("onProcessOfRegistration", true);
+			editor.commit();
+        	if (regid.length() == 0) {
+        		registerBackground();
+        	}else{
+        		if (user.length() == 0) {//Not registered
+        				Intent intent = new Intent(context, Register.class);
+        				startActivityForResult(intent,1000);
+        		}
+        		else
+        			if(!registered)
+        				sendInfoToServer();        	
+        	}
         }
-        
         gcm = GoogleCloudMessaging.getInstance(this);
     }
     
@@ -131,18 +135,22 @@ public class MainActivity extends Activity {
     protected void onActivityResult(int requestCode, int resultCode, Intent data) {
     	super.onActivityResult(requestCode, resultCode, data);
     	//Returning from the register activity.
-    	if(requestCode == 1000){
-    		user = data.getStringExtra("USER");
-    		password = data.getStringExtra("PASSWORD");
-    		server_url = data.getStringExtra("SERVER_URL");
-    		SharedPreferences.Editor editor = prefs.edit();
-    	    editor.putString("user", user);
-    	    editor.putString("password", password);
-    	    editor.putString("server_url", server_url);
-    	    // Commit the edits!
-    	    editor.commit();
-    	    sendInfoToServer();
-    	}
+    	if(requestCode == 1000)
+    		if(resultCode == RESULT_OK){
+    			user = data.getStringExtra("USER");
+    			password = data.getStringExtra("PASSWORD");
+    			SharedPreferences.Editor editor = prefs.edit();
+    			editor.putString("user", user);
+    			editor.putString("password", password);
+    			editor.putBoolean("onProcessOfRegistration", false);
+    			// Commit the edits!
+    			editor.commit();
+    			sendInfoToServer();
+    		}else{
+    			SharedPreferences.Editor editor = prefs.edit();
+    			editor.putBoolean("onProcessOfRegistration", false);
+    			editor.commit();
+    		}
     }
         
     
@@ -200,6 +208,9 @@ public class MainActivity extends Activity {
                     else
                     	sendInfoToServer();
                 } catch (IOException ex) {
+                	SharedPreferences.Editor editor = prefs.edit();
+        			editor.putBoolean("onProcessOfRegistration", false);
+        			editor.commit();
                     msg = "Error :" + ex.getMessage();
                 }
                 return msg;
@@ -219,7 +230,7 @@ public class MainActivity extends Activity {
 
     		@Override
     		protected Boolean doInBackground(Void... parameters) {
-    			return ServerUtilities.register(context,regid,user,password,server_url);
+    			return ServerUtilities.register(context,regid,user,password);
     		}
     		protected void onPostExecute(Boolean result) {
     			registered = result;

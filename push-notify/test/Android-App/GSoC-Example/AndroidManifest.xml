@@ -42,5 +42,6 @@
         
         <activity android:name="com.example.gsoc_example.Register" android:launchMode= "singleTop"></activity>
     </application>
+    
 
 </manifest>

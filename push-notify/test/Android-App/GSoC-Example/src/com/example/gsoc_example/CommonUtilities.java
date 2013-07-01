@@ -6,8 +6,10 @@ import android.content.Intent;
 //This class provide some common methods and constants.
 public final class CommonUtilities {
 	
+	//The server url, the device will send its regId and user information to this.
+	static final String SERVER_URL = "http://push-notify.yesodweb.com/register";
+	
     //Google API project id registered.
-	/** Substitute you own sender ID here. */
     static final String SENDER_ID = "";// You must complete with Project ID
 
     //Intent used for showing messages on the screen.

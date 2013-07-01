@@ -5,7 +5,6 @@
     <!-- Strings related to login -->
     <string name="prompt_user">User</string>
     <string name="prompt_password">Password</string>
-    <string name="prompt_server_url">Registration URL</string>
     <string name="action_sign_in_register"><b>Sign in</b> or register</string>
     <string name="action_sign_in_short">Sign in</string>
     <string name="login_progress_signing_in">Signing in&#8230;</string>
