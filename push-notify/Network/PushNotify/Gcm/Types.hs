@@ -6,8 +6,6 @@ module Network.PushNotify.Gcm.Types
     , GCMmessage(..)
     , GCMresult(..)
     , RegId
-    --, Notif_key
-    --, Notif_key_name
     ) where
 
 
@@ -21,20 +19,15 @@ import Control.Monad.Writer
 -- | 'GCMAppConfig' represents the main necessary information for sending notifications through GCM.
 data GCMAppConfig = GCMAppConfig
     {   apiKey :: Text
-    -- ,   projectId :: Text
-    }   deriving Show
+   }   deriving Show
 
 
 type RegId = Text
---type Notif_key = Text
---type Notif_key_name = Text
 
 
 -- | 'GCMmessage' represents a message to be sent through GCM.
 data GCMmessage = GCMmessage
     {   registration_ids :: Maybe [RegId]
-    --,   notification_key :: Maybe Notif_key -- Need to be continued, this is a new option added in the Google IO 2013
-    --,   notification_key_name :: Maybe Notif_key_name -- this too.
     ,   collapse_key :: Maybe Text
     ,   data_object :: Maybe Object
     ,   delay_while_idle :: Bool
@@ -46,8 +39,6 @@ data GCMmessage = GCMmessage
 instance Default GCMmessage where
     def = GCMmessage {
         registration_ids = Nothing
-    --,   notification_key = Nothing
-    --,   notification_key_name = Nothing
     ,   collapse_key = Nothing
     ,   data_object = Nothing
     ,   delay_while_idle = False
@@ -97,8 +88,6 @@ ifNotDef label f msg = if f def /= f msg
 instance ToJSON GCMmessage where
     toJSON msg = object $ execWriter $ do
                                         ifNotDef cREGISTRATION_IDS registration_ids msg
-                                        --ifNotDef cNOTIFICATION_KEY notification_key msg
-                                        --ifNotDef cNOTIFICATION_KEY_NAME notification_key_name msg
                                         ifNotDef cTIME_TO_LIVE time_to_live msg
                                         ifNotDef cDATA data_object msg
                                         ifNotDef cCOLLAPSE_KEY collapse_key msg
