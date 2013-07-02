@@ -5,6 +5,20 @@ and users can send messages through the web service. This is composed of:
 * a Yesod app for registering the devices and sending push notifications.
 * an Android app for registering on GCM and receiving the notifications.
 
+
++ To try the example:
+  
+  + On an Android device:
+     - Go to settings/applications/ allow unknown sources.
+     - In the web browser go to: http://push-notify.yesodweb.com/ and download 
+       the android app from the link at the bottom.
+     - Install it, enter a username and a password.
+
+  + If the registration succeded, when you go to: http://push-notify.yesodweb.com/ 
+    you will see your username. And you can start sending notifications through
+    the website.
+
+
 + About the Yesod App:
 
 Before running the Yesod app, you need to complete the "approot" and the 
@@ -23,19 +37,11 @@ in the GCM Servers.
 
 + About the android app:
 
-When started it gets its RegId, then it asks you for a username, a password 
-and a "Registration URL". This registration url would be something like: 
-"http://192.168.0.52:3000/register". I added this as a field to be filled,
-in order to avoid compiling the android app each time we try the Yesod app
-in a different IP. (If you will upload the yesod app to a hosting, you can
-replace it as a constant value in the android app.)
-So, to try the android app you need to complete the "SENDER_ID" field in the
-CommonUtilities.java file of the Android project and compile it. (This is the
-Project ID you get from Google Apis.) Once you have the .apk file you can put 
-it in the Static folder of the Yesod app. So, to start using it:
- * In the device, settings, applications , you need to allow unknown sources.
- * In the web browser download the app from : http:/...../static/GSoC-Example.apk
- * Install it.
+Its very simple. When started, it connects to the GCM Service and gets its RegID.
+Then, it asks you for a username and password, and sends all this information to
+your server.
+Once you have its regId, you can start sending notifications through GCM Servers.
+
 
 NOTE: The Android app is based on some examples provided by google in the Android
 developers site.
