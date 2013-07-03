@@ -7,17 +7,18 @@ module Network.PushNotify.Apns.Constants where
 
 import Data.Text
 
-cDEVELOPMENT_URL :: Text
+cDEVELOPMENT_URL :: String
 cDEVELOPMENT_URL = "gateway.sandbox.push.apple.com"
 
-cDEVELOPMENT_PORT :: Int
+cDEVELOPMENT_PORT :: Integer
 cDEVELOPMENT_PORT = 2195
 
-cPRODUCTION_URL :: Text
+cPRODUCTION_URL :: String
 cPRODUCTION_URL = "gateway.push.apple.com"
 
-cPRODUCTION_PORT :: Int
+cPRODUCTION_PORT :: Integer
 cPRODUCTION_PORT = 2195
+
 -- Fields for JSON object to be sent to APNS servers.
 
 cAPPS :: Text

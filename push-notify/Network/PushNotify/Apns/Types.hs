@@ -13,7 +13,6 @@ module Network.PushNotify.Apns.Types
     ) where
 
 import Network.PushNotify.Apns.Constants
-import Constants
 import Data.Default
 import Data.Aeson.Types
 import Data.Text
@@ -25,7 +24,7 @@ data Env = Development | Production deriving Show
 
 -- | 'APNSAppConfig' represents the main necessary information for sending notifications through APNS.
 data APNSAppConfig = APNSAppConfig
-    {   sSLCertificate :: Text
+    {   sslCertificate :: Text
     ,   environment :: Env     
     }   deriving Show
 
