@@ -4,10 +4,10 @@
              QuasiQuotes, MultiParamTypeClasses, GeneralizedNewtypeDeriving, FlexibleContexts, GADTs #-}
 
 -- | This Module define the main function to send Push Notifications through Apple Push Notification Service.
-module Network.PushNotify.Apns.Send (sendAPNS) where
+module Send (sendAPNS) where
 
-import Network.PushNotify.Apns.Types
-import Network.PushNotify.Apns.Constants
+import Types
+import Constants
 
 import Data.Convertible             (convert)
 import Data.Default
@@ -21,16 +21,27 @@ import qualified Data.ByteString.Lazy as LB
 import qualified Data.Aeson.Encode as AE
 import Network.Connection
 import Network.Socket.Internal      (PortNumber(PortNum))
+import Network.TLS.Extra            (fileReadCertificate,fileReadPrivateKey)
+import Network.TLS
+import Data.Certificate.X509        (X509)
 
-connParams :: Env -> ConnectionParams
-connParams env = ConnectionParams{
+connParams :: Env -> X509 -> PrivateKey -> ConnectionParams
+connParams env cert privateKey = ConnectionParams{
                 connectionHostname = case env of
                                         Development -> cDEVELOPMENT_URL
                                         Production  -> cPRODUCTION_URL
             ,   connectionPort     = case env of
                                         Development -> fromInteger cDEVELOPMENT_PORT
                                         Production  -> fromInteger cPRODUCTION_PORT
-            ,   connectionUseSecure = Just def
+            ,   connectionUseSecure = Just $ TLSSettings defaultParamsClient{
+                                            pCertificates = [(cert , Just privateKey)]
+                                        ,   roleParams    = Client $ ClientParams{
+                                                    clientWantSessionResume    = Nothing
+                                                ,   clientUseMaxFragmentLength = Nothing
+                                                ,   clientUseServerName        = Nothing
+                                                ,   onCertificateRequest       = \ _ -> return [(cert , Just privateKey)]
+                                            }
+                                        }
             ,   connectionUseSocks = Nothing
             }
 
@@ -38,9 +49,11 @@ connParams env = ConnectionParams{
 sendAPNS :: APNSAppConfig -> APNSmessage -> IO ()
 sendAPNS config msg = do
         let env = environment config
-        ctime      <- getPOSIXTime
-        cContext   <- initConnectionContext
-        connection <- connectTo cContext $ connParams env
+        ctime       <- getPOSIXTime
+        cert        <- fileReadCertificate $ certificate config
+        key         <- fileReadPrivateKey $ privateKey config
+        cContext    <- initConnectionContext
+        connection  <- connectTo cContext $ connParams env cert key
         connectionPut connection $ runPut $ createPut msg ctime
 
 createPut :: APNSmessage -> NominalDiffTime -> Put
