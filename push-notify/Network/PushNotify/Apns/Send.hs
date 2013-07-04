@@ -21,6 +21,7 @@ import qualified Data.ByteString.Lazy as LB
 import qualified Data.Aeson.Encode as AE
 import Network.Connection
 import Network.Socket.Internal      (PortNumber(PortNum))
+import Network.TLS.Extra            (fileReadCertificate,fileReadPrivateKey)
 
 connParams :: Env -> ConnectionParams
 connParams env = ConnectionParams{
@@ -30,7 +31,10 @@ connParams env = ConnectionParams{
             ,   connectionPort     = case env of
                                         Development -> fromInteger cDEVELOPMENT_PORT
                                         Production  -> fromInteger cPRODUCTION_PORT
-            ,   connectionUseSecure = Just def
+            ,   connectionUseSecure = TLSSettings defaultParamsClient{
+                                            w
+                                        ,   s
+                                        } --Just def
             ,   connectionUseSocks = Nothing
             }
 
