@@ -33,13 +33,13 @@ import OpenSSL.Session as SSL (
   )
 
 
-send = withOpenSSL $ do
+sendMessage = withOpenSSL $ do
   -- Prepare SSL context
   ssl <- context
-  contextSetPrivateKeyFile ssl "private-key.pem"
-  contextSetCertificateFile ssl "public-cert.pem"
-  contextSetDefaultCiphers ssl
-  contextSetVerificationMode ssl SSL.VerifyNone
+  --contextSetPrivateKeyFile ssl "private-key.pem"
+  --contextSetCertificateFile ssl "public-cert.pem"
+  --contextSetDefaultCiphers ssl
+  --contextSetVerificationMode ssl SSL.VerifyNone
 
   -- Open socket
   proto <- (getProtocolNumber "tcp")
@@ -61,7 +61,7 @@ send = withOpenSSL $ do
       pdu = toStrict lpdu
     in do
     SSL.write sslsocket pdu
-    SSL.shutdown sslsocket Unidirectional -- Close gracefully
+    --SSL.shutdown sslsocket Unidirectional -- Close gracefully
   where
     toStrict = B.concat . BL.toChunks
 
