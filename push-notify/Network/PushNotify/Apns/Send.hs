@@ -59,6 +59,7 @@ sendAPNS config msg = do
 loop msg []     =  return ()
 loop msg (x:xs) = do
                    connectionPut connection $ runPut $ createPut x msg ctime
+                   loop msg (xs)
 
 
 createPut :: DeviceToken -> APNSmessage -> NominalDiffTime -> Put
