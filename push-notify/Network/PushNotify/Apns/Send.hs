@@ -4,10 +4,10 @@
              QuasiQuotes, MultiParamTypeClasses, GeneralizedNewtypeDeriving, FlexibleContexts, GADTs #-}
 
 -- | This Module define the main function to send Push Notifications through Apple Push Notification Service.
-module Send (sendAPNS) where
+module Network.PushNotify.Apns.Send (sendAPNS) where
 
-import Types
-import Constants
+import Network.PushNotify.Apns.Types
+import Network.PushNotify.Apns.Constants
 
 import Data.Convertible             (convert)
 import Data.Default
@@ -54,12 +54,17 @@ sendAPNS config msg = do
         key         <- fileReadPrivateKey $ privateKey config
         cContext    <- initConnectionContext
         connection  <- connectTo cContext $ connParams env cert key
-        connectionPut connection $ runPut $ createPut msg ctime
+        loop msg $ deviceToken msg
 
-createPut :: APNSmessage -> NominalDiffTime -> Put
-createPut msg ctime = do
+loop msg []     =  return ()
+loop msg (x:xs) = do
+                   connectionPut connection $ runPut $ createPut x msg ctime
+
+
+createPut :: DeviceToken -> APNSmessage -> NominalDiffTime -> Put
+createPut dst msg ctime = do
    let
-       btoken     = encodeUtf8 $ deviceToken msg -- I have to check if encodeUtf8 is the appropiate function.
+       btoken     = encodeUtf8 dst -- I have to check if encodeUtf8 is the appropiate function.
        bpayload   = AE.encode msg
        expiryTime = case expiry msg of
                       Nothing ->  round (ctime + posixDayLength) -- One day for default
@@ -74,5 +79,4 @@ createPut msg ctime = do
             putByteString btoken
             putWord16be $ convert $ LB.length bpayload
             putLazyByteString bpayload
-
 

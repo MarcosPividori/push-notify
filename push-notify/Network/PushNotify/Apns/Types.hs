@@ -4,7 +4,7 @@
 
 -- | This Module define the main data types for sending Push Notifications through Apple Push Notification Service.
 
-module Types
+module Network.PushNotify.Apns.Types
     ( APNSAppConfig(..)
     , APNSmessage(..)
     , AlertDictionary(..)
@@ -12,7 +12,7 @@ module Types
     , Env(..)
     ) where
 
-import Constants
+import Network.PushNotify.Apns.Constants
 import Data.Default
 import Data.Aeson.Types
 import Data.Text
@@ -35,7 +35,7 @@ type DeviceToken = Text
 
 -- | 'APNSmessage' represents a message to be sent through APNS.
 data APNSmessage = APNSmessage
-    {   deviceToken :: DeviceToken
+    {   deviceTokens :: [DeviceToken]
     ,   expiry :: Maybe UTCTime
     ,   alert :: Either Text AlertDictionary
     ,   badge :: Maybe Int
@@ -70,6 +70,27 @@ instance Default AlertDictionary where
     ,   launch_image = empty
     }
 
+{-
+-- | 'APNSresult' represents information about messages after a communication with APNS Servers.
+data APNSresult = APNSresult
+    {   toReSendTokens :: [DeviceToken]
+    } deriving Show
+-}
+
+instance Default GCMresult where
+    def = GCMresult {
+        multicast_id = Nothing
+    ,   success = Nothing
+    ,   failure = Nothing
+    ,   canonical_ids = Nothing
+    ,   newRegids = []
+    ,   messagesIds = []
+    ,   errorUnRegistered = []
+    ,   errorToReSend = []
+    ,   errorRest = []
+    }
+
+
 ifNotDef :: (ToJSON a,MonadWriter [Pair] m,Eq a,Default b)
             => Text
             -> (b -> a)
@@ -81,7 +102,7 @@ ifNotDef label f msg = if f def /= f msg
 
 instance ToJSON APNSmessage where
     toJSON msg = case rest msg of
-                     Nothing           -> object [(cAPPS .= toJSONapps msg)]
+                     Nothing    -> object [(cAPPS .= toJSONapps msg)]
                      Just (map) -> Object $ insert cAPPS (toJSONapps msg) map    
 
 toJSONapps msg = object $ execWriter $ do
@@ -89,7 +110,7 @@ toJSONapps msg = object $ execWriter $ do
                                             Left  xs -> if xs == empty
                                                             then tell []
                                                             else tell [(cALERT .= xs)]
-                                            Right m     -> tell [(cALERT .= (toJSON m))]
+                                            Right m  -> tell [(cALERT .= (toJSON m))]
                                         ifNotDef cBADGE badge msg
                                         ifNotDef cSOUND sound msg
                                         
