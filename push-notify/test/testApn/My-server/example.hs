@@ -26,15 +26,21 @@ connParams :: X509 -> PrivateKey -> ConnectionParams
 connParams cert privateKey = ConnectionParams{
                 connectionHostname = "localhost"
             ,   connectionPort     = fromInteger 2195
-            ,   connectionUseSecure = Just $ TLSSettings defaultParamsClient{
+            ,   connectionUseSecure = Just $ TLSSettings defaultParamsClient{-
                                              pCertificates = [(cert , Just privateKey)]
+                                        ,    onHandshake        = \a -> do
+                                                                            print a
+                                                                            return True
+                                        ,    onCertificatesRecv = \_ -> return CertificateUsageAccept
                                         ,    roleParams    = Client $ ClientParams{
                                                     clientWantSessionResume    = Nothing
                                                 ,   clientUseMaxFragmentLength = Nothing
                                                 ,   clientUseServerName        = Nothing
-                                                ,   onCertificateRequest       = \ _ -> return [(cert , Just privateKey)]
+                                                ,   onCertificateRequest       = \x -> return True {-do
+                                                                                           print x
+                                                                                           return [(cert , Just privateKey)]-}
                                              }
-                                        }
+                                        -}
             ,   connectionUseSocks = Nothing
             }
 
