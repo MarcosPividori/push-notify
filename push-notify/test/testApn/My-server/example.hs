@@ -18,29 +18,38 @@ import qualified Data.ByteString.Lazy as LB
 import qualified Data.Aeson.Encode as AE
 import Network.Connection
 import Network.Socket.Internal      (PortNumber(PortNum))
-import Network.TLS.Extra            (fileReadCertificate,fileReadPrivateKey)
+import Network.TLS.Extra            --(fileReadCertificate,fileReadPrivateKey)
 import Network.TLS
 import Data.Certificate.X509        (X509)
+import Control.Concurrent
+
+logging = defaultLogging{
+        loggingPacketSent = putStrLn . ("debug: >> " ++)
+    ,   loggingPacketRecv = putStrLn . ("debug: << " ++)
+    }
+
+ciphers :: [Cipher]
+ciphers =
+    [ cipher_AES128_SHA1
+    , cipher_AES256_SHA1
+    , cipher_RC4_128_MD5
+    , cipher_RC4_128_SHA1
+    ]
 
 connParams :: X509 -> PrivateKey -> ConnectionParams
 connParams cert privateKey = ConnectionParams{
                 connectionHostname = "localhost"
             ,   connectionPort     = fromInteger 2195
-            ,   connectionUseSecure = Just $ TLSSettings defaultParamsClient{-
-                                             pCertificates = [(cert , Just privateKey)]
-                                        ,    onHandshake        = \a -> do
-                                                                            print a
-                                                                            return True
-                                        ,    onCertificatesRecv = \_ -> return CertificateUsageAccept
+            ,   connectionUseSecure = Just $ TLSSettings defaultParamsClient{
+                                             pCiphers = ciphers
+                                        ,    pCertificates = [(cert , Just privateKey)]
                                         ,    roleParams    = Client $ ClientParams{
                                                     clientWantSessionResume    = Nothing
                                                 ,   clientUseMaxFragmentLength = Nothing
                                                 ,   clientUseServerName        = Nothing
-                                                ,   onCertificateRequest       = \x -> return True {-do
-                                                                                           print x
-                                                                                           return [(cert , Just privateKey)]-}
+                                                ,   onCertificateRequest       = \x -> return [(cert , Just privateKey)]
                                              }
-                                        -}
+                                        }
             ,   connectionUseSocks = Nothing
             }
 
@@ -53,7 +62,6 @@ send = do
         connection  <- connectTo cContext $ connParams cert key
         connectionPut connection $ runPut $ createPut def{deviceToken = "7518b1c2c7686d3b5dcac823231"} ctime
 
-
 createPut :: APNSmessage -> NominalDiffTime -> Put
 createPut msg ctime = do
    let
@@ -62,9 +70,6 @@ createPut msg ctime = do
        expiryTime = case expiry msg of
                       Nothing ->  round (ctime + posixDayLength)-- One day for Default
                       Just t  ->  round (utcTimeToPOSIXSeconds t)
-   --if (B.length btoken) /= 32
-    --then fail "Invalid deviceToken"
-   -- else
    if (LB.length bpayload > 256)
           then fail "Too long payload"
           else do

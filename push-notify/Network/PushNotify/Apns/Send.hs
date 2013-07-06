@@ -25,6 +25,14 @@ import Network.TLS.Extra            (fileReadCertificate,fileReadPrivateKey)
 import Network.TLS
 import Data.Certificate.X509        (X509)
 
+ciphers :: [Cipher]
+ciphers =
+    [ cipher_AES128_SHA1
+    , cipher_AES256_SHA1
+    , cipher_RC4_128_MD5
+    , cipher_RC4_128_SHA1
+    ]
+
 connParams :: Env -> X509 -> PrivateKey -> ConnectionParams
 connParams env cert privateKey = ConnectionParams{
                 connectionHostname = case env of
@@ -34,7 +42,8 @@ connParams env cert privateKey = ConnectionParams{
                                         Development -> fromInteger cDEVELOPMENT_PORT
                                         Production  -> fromInteger cPRODUCTION_PORT
             ,   connectionUseSecure = Just $ TLSSettings defaultParamsClient{
-                                            pCertificates = [(cert , Just privateKey)]
+                                            pCiphers = ciphers
+                                        ,   pCertificates = [(cert , Just privateKey)]
                                         ,   roleParams    = Client $ ClientParams{
                                                     clientWantSessionResume    = Nothing
                                                 ,   clientUseMaxFragmentLength = Nothing
