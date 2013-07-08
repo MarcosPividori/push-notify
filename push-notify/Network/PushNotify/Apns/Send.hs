@@ -19,60 +19,74 @@ import Data.Time.Clock
 import qualified Data.ByteString as B
 import qualified Data.ByteString.Lazy as LB
 import qualified Data.Aeson.Encode as AE
-import Network.Connection
 import Network.Socket.Internal      (PortNumber(PortNum))
-import Network.TLS.Extra            (fileReadCertificate,fileReadPrivateKey)
+import Network.TLS.Extra            (fileReadCertificate,fileReadPrivateKey,ciphersuite_all)
 import Network.TLS
+import Network
+import qualified Crypto.Random.AESCtr as RNG
 import Data.Certificate.X509        (X509)
+import Control.Concurrent
 
-ciphers :: [Cipher]
-ciphers =
-    [ cipher_AES128_SHA1
-    , cipher_AES256_SHA1
-    , cipher_RC4_128_MD5
-    , cipher_RC4_128_SHA1
-    ]
-
-connParams :: Env -> X509 -> PrivateKey -> ConnectionParams
-connParams env cert privateKey = ConnectionParams{
-                connectionHostname = case env of
-                                        Development -> cDEVELOPMENT_URL
-                                        Production  -> cPRODUCTION_URL
-            ,   connectionPort     = case env of
-                                        Development -> fromInteger cDEVELOPMENT_PORT
-                                        Production  -> fromInteger cPRODUCTION_PORT
-            ,   connectionUseSecure = Just $ TLSSettings defaultParamsClient{
-                                            pCiphers = ciphers
-                                        ,   pCertificates = [(cert , Just privateKey)]
-                                        ,   roleParams    = Client $ ClientParams{
+connParams :: X509 -> PrivateKey -> Params
+connParams cert privateKey = defaultParamsClient{ 
+                                          pConnectVersion    = TLS11
+                                        , pAllowedVersions   = [TLS10,TLS11,TLS12]
+                                        , pCiphers           = ciphersuite_all
+                                        , pCertificates      = [(cert , Just privateKey)]
+                                        , onCertificatesRecv = const $ return CertificateUsageAccept
+                                        , roleParams         = Client $ ClientParams{
                                                     clientWantSessionResume    = Nothing
                                                 ,   clientUseMaxFragmentLength = Nothing
                                                 ,   clientUseServerName        = Nothing
-                                                ,   onCertificateRequest       = \ _ -> return [(cert , Just privateKey)]
-                                            }
+                                                ,   onCertificateRequest       = \x -> return [(cert , Just privateKey)]
+                                             }
                                         }
-            ,   connectionUseSocks = Nothing
-            }
 
 -- | 'sendAPNS' sends the message through a APNS Server.
-sendAPNS :: APNSAppConfig -> APNSmessage -> IO ()
+sendAPNS :: APNSAppConfig -> APNSmessage -> IO APNSresult
 sendAPNS config msg = do
         let env = environment config
-        ctime       <- getPOSIXTime
-        cert        <- fileReadCertificate $ certificate config
-        key         <- fileReadPrivateKey $ privateKey config
-        cContext    <- initConnectionContext
-        connection  <- connectTo cContext $ connParams env cert key
-        loop msg $ deviceToken msg
+        ctime   <- getPOSIXTime
+        cert    <- fileReadCertificate $ certificate config
+        key     <- fileReadPrivateKey $ privateKey config
+        handle  <- case env of
+                    Development -> connectTo cDEVELOPMENT_URL $ PortNumber $ fromInteger cDEVELOPMENT_PORT
+                    Production  -> connectTo cPRODUCTION_URL $ PortNumber $ fromInteger cPRODUCTION_PORT
+        rng     <- RNG.makeSystem
+        ctx     <- contextNewOnHandle handle (connParams cert key) rng
+        handshake ctx
+        var     <- newEmptyMVar
 
-loop msg []     =  return ()
-loop msg (x:xs) = do
-                   connectionPut connection $ runPut $ createPut x msg ctime
-                   loop msg (xs)
+        forkIO $ do -- To receive error response.
+                    dat <- recvData ctx
+                    case runGet (getWord16be >> getWord32be) dat of
+                        Right ident -> putMVar var $ Just (convert ident)
+                        Left _      -> return ()
+
+        forkIO $ loop var ctx 1 (createPut def ctime) $ deviceTokens msg -- To send the notifications.
+
+        v <- takeMVar var
+        bye ctx
+        case v of
+            Just s  -> return $ APNSresult $ drop s $ deviceTokens msg
+            Nothing -> return $ APNSresult []
+
+loop :: MVar (Maybe Int) 
+     -> Context 
+     -> Int 
+     -> (DeviceToken -> Int -> Put)
+     -> [DeviceToken]
+     -> IO ()
+loop var ctx _ cput []       = do
+                                    threadDelay (10000)
+                                    putMVar var Nothing
+loop var ctx num cput (x:xs) = do
+                                    sendData ctx $ LB.fromChunks [ (runPut $ cput x num) ]
+                                    loop var ctx (num+1) cput xs
 
 
-createPut :: DeviceToken -> APNSmessage -> NominalDiffTime -> Put
-createPut dst msg ctime = do
+createPut :: APNSmessage -> NominalDiffTime -> DeviceToken -> Int -> Put
+createPut msg ctime dst identifier = do
    let
        btoken     = encodeUtf8 dst -- I have to check if encodeUtf8 is the appropiate function.
        bpayload   = AE.encode msg
@@ -83,10 +97,9 @@ createPut dst msg ctime = do
       then fail "Too long payload"
       else do
             putWord8 1
-            putWord32be 10 -- identifier
+            putWord32be $ convert identifier
             putWord32be expiryTime
             putWord16be $ convert $ B.length btoken
             putByteString btoken
             putWord16be $ convert $ LB.length bpayload
             putLazyByteString bpayload
-

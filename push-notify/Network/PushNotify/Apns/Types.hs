@@ -8,6 +8,7 @@ module Network.PushNotify.Apns.Types
     ( APNSAppConfig(..)
     , APNSmessage(..)
     , AlertDictionary(..)
+    , APNSresult(..)
     , DeviceToken
     , Env(..)
     ) where
@@ -45,7 +46,7 @@ data APNSmessage = APNSmessage
 
 instance Default APNSmessage where
     def = APNSmessage {
-        deviceToken = empty
+        deviceTokens = []
     ,   expiry = Nothing
     ,   alert = Left empty
     ,   badge = Nothing
@@ -70,25 +71,13 @@ instance Default AlertDictionary where
     ,   launch_image = empty
     }
 
-{-
 -- | 'APNSresult' represents information about messages after a communication with APNS Servers.
 data APNSresult = APNSresult
     {   toReSendTokens :: [DeviceToken]
     } deriving Show
--}
 
-instance Default GCMresult where
-    def = GCMresult {
-        multicast_id = Nothing
-    ,   success = Nothing
-    ,   failure = Nothing
-    ,   canonical_ids = Nothing
-    ,   newRegids = []
-    ,   messagesIds = []
-    ,   errorUnRegistered = []
-    ,   errorToReSend = []
-    ,   errorRest = []
-    }
+instance Default APNSresult where
+    def = APNSresult []
 
 
 ifNotDef :: (ToJSON a,MonadWriter [Pair] m,Eq a,Default b)
@@ -107,7 +96,7 @@ instance ToJSON APNSmessage where
 
 toJSONapps msg = object $ execWriter $ do
                                         case alert msg of
-                                            Left  xs -> if xs == empty
+                                            Left xs  -> if xs == empty
                                                             then tell []
                                                             else tell [(cALERT .= xs)]
                                             Right m  -> tell [(cALERT .= (toJSON m))]
