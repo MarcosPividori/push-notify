@@ -1,11 +1,9 @@
 -- GSoC 2013 - Communicating with mobile devices.
 
-import Network.PushNotify.Apns.Send
-import Network.PushNotify.Apns.Types
+import Send
+import Types
 import Data.Default
 import Data.Text (pack)
-import Data.Aeson.Types
-import Data.Aeson
 
 main :: IO ()
 main = do
@@ -13,11 +11,14 @@ main = do
                             certificate = "public-cert.pem"
                         ,   privateKey = "private-key.pem"
                         ,   environment = Development }
-            putStrLn "A device token : "
+            putStrLn "LET'S SEND A NOTIFICATION:"
+            putStr "A device token (hexadecimal): "
             dtoken <- getLine
-            putStrLn "An alert message : "
+            putStr "An alert message: "
             alertMsg <- getLine
             let msg = def { deviceTokens = [pack dtoken], alert = Left $ pack alertMsg }
-            print $ encode $ toJSON msg
-            res <- sendAPNS confg msg
-            print res
+            res     <- sendAPNS confg msg
+            putStrLn ("Result: " ++ show res)
+            putStrLn "\nLET'S CONNECT WITH FEEDBACK SERVICE:"
+            fres    <- feedBackAPNS confg
+            putStrLn ("Result: " ++ show fres)
