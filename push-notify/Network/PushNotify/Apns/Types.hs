@@ -9,6 +9,7 @@ module Network.PushNotify.Apns.Types
     , APNSmessage(..)
     , AlertDictionary(..)
     , APNSresult(..)
+    , APNSFeedBackresult(..)
     , DeviceToken
     , Env(..)
     ) where
@@ -31,7 +32,7 @@ data APNSAppConfig = APNSAppConfig
     }   deriving Show
 
 
-type DeviceToken = Text
+type DeviceToken = Text -- Binary token stored in hexadecimal representation as text.
 
 
 -- | 'APNSmessage' represents a message to be sent through APNS.
@@ -79,6 +80,13 @@ data APNSresult = APNSresult
 instance Default APNSresult where
     def = APNSresult []
 
+-- | 'APNSFeedBackresult' represents information after connecting with the Feedback service.
+data APNSFeedBackresult = APNSFeedBackresult
+    {   unRegistered :: [(DeviceToken,UTCTime)]
+    } deriving Show
+
+instance Default APNSFeedBackresult where
+    def = APNSFeedBackresult []
 
 ifNotDef :: (ToJSON a,MonadWriter [Pair] m,Eq a,Default b)
             => Text

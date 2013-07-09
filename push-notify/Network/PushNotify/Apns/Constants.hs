@@ -13,11 +13,23 @@ cDEVELOPMENT_URL = "gateway.sandbox.push.apple.com"
 cDEVELOPMENT_PORT :: Integer
 cDEVELOPMENT_PORT = 2195
 
+cDEVELOPMENT_FEEDBACK_URL :: String
+cDEVELOPMENT_FEEDBACK_URL = "feedback.sandbox.push.apple.com"
+
+cDEVELOPMENT_FEEDBACK_PORT :: Integer
+cDEVELOPMENT_FEEDBACK_PORT = 2196
+
 cPRODUCTION_URL :: String
 cPRODUCTION_URL = "gateway.push.apple.com"
 
 cPRODUCTION_PORT :: Integer
 cPRODUCTION_PORT = 2195
+
+cPRODUCTION_FEEDBACK_URL :: String
+cPRODUCTION_FEEDBACK_URL = "feedback.push.apple.com"
+
+cPRODUCTION_FEEDBACK_PORT :: Integer
+cPRODUCTION_FEEDBACK_PORT = 2196
 
 -- Fields for JSON object to be sent to APNS servers.
 
