@@ -28,7 +28,7 @@ function feedBackDummyServer(stream) {
         // Build the PDU
         var idx = 0;
         var buf = Buffer(4+2+32);
-        buf.writeUInt32BE(~~new Date(), idx);
+        buf.writeUInt32BE(1350000000, idx);
         idx += 4;
         buf.writeUInt16BE(token.length, idx);
         idx += 2;
