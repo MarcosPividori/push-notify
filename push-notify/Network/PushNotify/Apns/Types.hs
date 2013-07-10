@@ -22,54 +22,64 @@ import Control.Monad.Writer
 import Data.HashMap.Strict (insert,HashMap)
 import Data.Time.Clock
 
+-- | 'Env' represents the two possible environments.
 data Env = Development | Production deriving Show
 
 -- | 'APNSAppConfig' represents the main necessary information for sending notifications through APNS.
 data APNSAppConfig = APNSAppConfig
-    {   certificate :: String
-    ,   privateKey  :: String
-    ,   environment :: Env
+    {   certificate :: String -- ^ certificate provided by Apple.
+    ,   privateKey  :: String -- ^ private key provided by Apple.
+    ,   environment :: Env -- ^ One of the two possible environments.
+    ,   timeoutTime :: Int -- ^ The time to wait for a server response. (microseconds)
     }   deriving Show
 
+instance Default APNSAppConfig where
+    def = APNSAppConfig {
+        certificate = ""
+    ,   privateKey  = ""
+    ,   environment = Development
+    ,   timeoutTime = 50000
+    }
 
 type DeviceToken = Text -- Binary token stored in hexadecimal representation as text.
 
 
 -- | 'APNSmessage' represents a message to be sent through APNS.
 data APNSmessage = APNSmessage
-    {   deviceTokens :: [DeviceToken]
-    ,   expiry :: Maybe UTCTime
-    ,   alert :: Either Text AlertDictionary
-    ,   badge :: Maybe Int
-    ,   sound :: Text
-    ,   rest :: Maybe Object
+    {   deviceTokens :: [DeviceToken] -- ^ Destination.
+    ,   expiry       :: Maybe UTCTime -- ^ Identifies when the notification is no longer valid and can be discarded. 
+    ,   alert        :: Either Text AlertDictionary -- ^ For the system to displays a standard alert.
+    ,   badge        :: Maybe Int -- ^ Number to display as the badge of the application icon.
+    ,   sound        :: Text -- ^ The name of a sound file in the application bundle. 
+    ,   rest         :: Maybe Object -- ^ Extra information.
     } deriving Show
 
 instance Default APNSmessage where
     def = APNSmessage {
         deviceTokens = []
-    ,   expiry = Nothing
-    ,   alert = Left empty
-    ,   badge = Nothing
-    ,   sound = empty
-    ,   rest = Nothing
+    ,   expiry       = Nothing
+    ,   alert        = Left empty
+    ,   badge        = Nothing
+    ,   sound        = empty
+    ,   rest         = Nothing
     }
 
+-- | 'AlertDictionary' represents the possible dictionary in the 'alert' label.
 data AlertDictionary = AlertDictionary
-    {   body :: Text
+    {   body           :: Text
     ,   action_loc_key :: Text
-    ,   loc_key :: Text
-    ,   loc_args :: [Text]
-    ,   launch_image :: Text
+    ,   loc_key        :: Text
+    ,   loc_args       :: [Text]
+    ,   launch_image   :: Text
     } deriving Show
 
 instance Default AlertDictionary where
     def = AlertDictionary{
-        body = empty
+        body           = empty
     ,   action_loc_key = empty
-    ,   loc_key = empty
-    ,   loc_args = []
-    ,   launch_image = empty
+    ,   loc_key        = empty
+    ,   loc_args       = []
+    ,   launch_image   = empty
     }
 
 -- | 'APNSresult' represents information about messages after a communication with APNS Servers.
@@ -87,6 +97,7 @@ data APNSFeedBackresult = APNSFeedBackresult
 
 instance Default APNSFeedBackresult where
     def = APNSFeedBackresult []
+
 
 ifNotDef :: (ToJSON a,MonadWriter [Pair] m,Eq a,Default b)
             => Text
