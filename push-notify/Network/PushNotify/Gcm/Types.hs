@@ -19,7 +19,7 @@ import Control.Monad.Writer
 -- | 'GCMAppConfig' represents the main necessary information for sending notifications through GCM.
 data GCMAppConfig = GCMAppConfig
     {   apiKey :: Text
-   }   deriving Show
+    }   deriving Show
 
 
 type RegId = Text
@@ -27,52 +27,52 @@ type RegId = Text
 
 -- | 'GCMmessage' represents a message to be sent through GCM.
 data GCMmessage = GCMmessage
-    {   registration_ids :: Maybe [RegId]
-    ,   collapse_key :: Maybe Text
-    ,   data_object :: Maybe Object
-    ,   delay_while_idle :: Bool
-    ,   time_to_live :: Maybe Int
+    {   registration_ids        :: Maybe [RegId]
+    ,   collapse_key            :: Maybe Text
+    ,   data_object             :: Maybe Object
+    ,   delay_while_idle        :: Bool
+    ,   time_to_live            :: Maybe Int
     ,   restricted_package_name :: Maybe Text
-    ,   dry_run :: Bool
+    ,   dry_run                 :: Bool
     } deriving Show
 
 instance Default GCMmessage where
     def = GCMmessage {
-        registration_ids = Nothing
-    ,   collapse_key = Nothing
-    ,   data_object = Nothing
-    ,   delay_while_idle = False
-    ,   time_to_live = Nothing
+        registration_ids        = Nothing
+    ,   collapse_key            = Nothing
+    ,   data_object             = Nothing
+    ,   delay_while_idle        = False
+    ,   time_to_live            = Nothing
     ,   restricted_package_name = Nothing
-    ,   dry_run = False
+    ,   dry_run                 = False
     }
 
 
 -- | 'GCMresult' represents information about messages after a communication with GCM Servers.
 data GCMresult = GCMresult
-    {   multicast_id :: Maybe Integer
-    ,   success :: Maybe Int
-    ,   failure :: Maybe Int
-    ,   canonical_ids :: Maybe Int
-    ,   newRegids :: [(RegId,RegId)] -- regIds that need to be replaced.
-    ,   messagesIds :: [(RegId,Text)] -- Successful RegIds, and its message_id
-    ,   errorUnRegistered :: [RegId] -- Failed regIds that need to be removed.
-    ,   errorToReSend :: [RegId] -- Failed regIds that I need to resend the message to,
-                                 -- because there was an internal problem in the GCM servers.
-    ,   errorRest :: [(RegId,Text)] -- Failed regIds with the rest of the possible errors (probably a non-recoverable errors)
+    {   multicast_id      :: Maybe Integer
+    ,   success           :: Maybe Int
+    ,   failure           :: Maybe Int
+    ,   canonical_ids     :: Maybe Int
+    ,   newRegids         :: [(RegId,RegId)] -- ^ regIds that need to be replaced.
+    ,   messagesIds       :: [(RegId,Text)] -- ^ Successful RegIds, and its message_id
+    ,   errorUnRegistered :: [RegId] -- ^ Failed regIds that need to be removed.
+    ,   errorToReSend     :: [RegId] -- ^ Failed regIds that I need to resend the message to,
+                                 -- ^ because there was an internal problem in the GCM servers.
+    ,   errorRest         :: [(RegId,Text)] -- ^ Failed regIds with the rest of the possible errors (probably a non-recoverable errors)
     } deriving Show
 
 instance Default GCMresult where
     def = GCMresult {
-        multicast_id = Nothing
-    ,   success = Nothing
-    ,   failure = Nothing
-    ,   canonical_ids = Nothing
-    ,   newRegids = []
-    ,   messagesIds = []
+        multicast_id      = Nothing
+    ,   success           = Nothing
+    ,   failure           = Nothing
+    ,   canonical_ids     = Nothing
+    ,   newRegids         = []
+    ,   messagesIds       = []
     ,   errorUnRegistered = []
-    ,   errorToReSend = []
-    ,   errorRest = []
+    ,   errorToReSend     = []
+    ,   errorRest         = []
     }
 
 

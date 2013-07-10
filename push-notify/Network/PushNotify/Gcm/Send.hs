@@ -6,26 +6,28 @@
 -- | This Module define the main function to send Push Notifications through Google Cloud Messaging.
 module Network.PushNotify.Gcm.Send (sendGCM) where
 
-import Network.PushNotify.Gcm.Types
 import Network.PushNotify.Gcm.Constants
+import Network.PushNotify.Gcm.Types
+
+import Data.Aeson
+import Data.Aeson.Parser            (json)
+import Data.Aeson.Types
+import Data.Conduit                 (($$+-))
+import Data.Conduit.Attoparsec      (sinkParser)
+import Data.Map                     (Map,lookup)
+import Data.String
+import Data.Text                    (Text, pack, unpack, empty)
+import qualified Data.ByteString.Char8 as B
+import Control.Concurrent
+import Control.Monad.IO.Class       (liftIO)
 import Control.Monad.Trans.Control  (MonadBaseControl)
 import Control.Monad.Trans.Resource (MonadResource)
+import Control.Retry
+import Network.HTTP.Types
 import Network.HTTP.Conduit         (http, parseUrl, withManager, RequestBody (RequestBodyLBS),
                                      requestBody, requestHeaders, method, Response (..), Manager,
                                      newManager, def, Request)
-import Network.HTTP.Types
-import Data.Aeson.Parser            (json)
-import Data.Conduit                 (($$+-))
-import Data.Conduit.Attoparsec      (sinkParser)
-import Control.Monad.IO.Class       (liftIO)
-import Data.Aeson
-import Data.Aeson.Types
-import Data.Map                     (Map,lookup)
-import Data.Text                    (Text, pack, unpack, empty)
-import Data.String
-import Control.Retry
-import Control.Concurrent
-import qualified Data.ByteString.Char8 as B
+
 
 retrySettingsGCM = RetrySettings {
     backoff = True
@@ -37,16 +39,17 @@ retrySettingsGCM = RetrySettings {
 sendGCM :: GCMAppConfig -> GCMmessage -> Int -> IO GCMresult
 sendGCM cnfg msg numRet = withManager $ \manager -> do
     let
-        value = toJSON msg
+        value   = toJSON msg
         valueBS = encode value
     req' <- liftIO $ parseUrl $ unpack cPOST_URL
     let req = req' {
-                   method = "POST",
-                   requestBody = RequestBodyLBS valueBS,
-                   requestHeaders =
-                        [ ("Content-Type", "application/json"),
-                          ("Authorization", fromString $ unpack $ apiKey cnfg) -- API Key. (provided by Google)
-                        ]}
+                method = "POST"
+              , requestBody = RequestBodyLBS valueBS
+              , requestHeaders = [ 
+                            ("Content-Type", "application/json")
+                        ,   ("Authorization", fromString $ unpack $ apiKey cnfg) -- API Key. (provided by Google)
+                        ]
+              }
     retry req manager numRet msg
 
 -- 'retry' try numRet attemps to send the messages.
