@@ -1,13 +1,13 @@
 -- GSoC 2013 - Communicating with mobile devices.
 
-import Send
-import Types
+import Network.PushNotify.Apns.Send
+import Network.PushNotify.Apns.Types
 import Data.Default
 import Data.Text (pack)
 
 main :: IO ()
 main = do
-            let confg = APNSAppConfig{
+            let confg = def{
                             certificate = "public-cert.pem"
                         ,   privateKey = "private-key.pem"
                         ,   environment = Development }
