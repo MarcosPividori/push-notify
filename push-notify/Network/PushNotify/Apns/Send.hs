@@ -5,7 +5,7 @@
 
 -- | This Module define the main function to send Push Notifications through Apple Push Notification Service,
 -- and to communicate with the Feedback Service.
-module Network.PushNotify.Apns.Send (sendAPNS,feedBackAPNS) where
+module Network.PushNotify.Apns.Send (sendAPNS,startAPNS,closeAPNS) where
 
 import Network.PushNotify.Apns.Types
 import Network.PushNotify.Apns.Constants
@@ -14,6 +14,7 @@ import Control.Concurrent
 import Data.Certificate.X509            (X509)
 import Data.Convertible                 (convert)
 import Data.Default
+import Data.Int
 import Data.Serialize
 import Data.Text.Encoding               (encodeUtf8,decodeUtf8)
 import Data.Time.Clock
@@ -28,6 +29,7 @@ import Network.Socket.Internal          (PortNumber(PortNum))
 import Network.TLS
 import Network.TLS.Extra                (fileReadCertificate,fileReadPrivateKey,ciphersuite_all)
 import System.Timeout
+import qualified Control.Exception  as CE
 
 connParams :: X509 -> PrivateKey -> Params
 connParams cert privateKey = defaultParamsClient{ 
@@ -44,10 +46,9 @@ connParams cert privateKey = defaultParamsClient{
                         }
                    }
 
--- | 'sendAPNS' sends the message through a APNS Server.
-sendAPNS :: APNSAppConfig -> APNSmessage -> IO APNSresult
-sendAPNS config msg = do
-        ctime   <- getPOSIXTime
+-- 'connectAPNS' starts a secure connection with APNS servers.
+connectAPNS :: APNSAppConfig -> IO Context
+connectAPNS config = do
         cert    <- fileReadCertificate $ certificate config
         key     <- fileReadPrivateKey $ privateKey config
         handle  <- case environment config of
@@ -57,46 +58,114 @@ sendAPNS config msg = do
                                            $ PortNumber $ fromInteger cPRODUCTION_PORT
         rng     <- RNG.makeSystem
         ctx     <- contextNewOnHandle handle (connParams cert key) rng
-        
         handshake ctx
-        var     <- newEmptyMVar
+        return ctx
 
-        -- To receive error response.
-        tID1    <- forkIO $ do
-                    dat <- recvData ctx
-                    case runGet (getWord16be >> getWord32be) dat of -- | COMMAND and STATUS | ID |
-                        Right ident -> putMVar var $ Just (convert ident)
-                        Left _      -> putMVar var $ Just 0
+-- | 'startAPNS' starts the APNS service.
+startAPNS :: APNSAppConfig -> IO APNSAppConfig
+startAPNS config = do
+        c       <- newChan
+        let newConfig = config{apnsChannel = Just c}
+        tID     <- forkIO $ apnsWorker newConfig
+        return newConfig{workerID = Just tID}
 
-        -- To send the notifications.
-        tID2    <- forkIO $ loop var ctx 1 (createPut msg ctime) $ deviceTokens msg
+-- | 'closeAPNS' stops the APNS service.
+closeAPNS :: APNSAppConfig -> IO ()
+closeAPNS config = case workerID config of
+                    Just t  -> killThread t
+                    Nothing -> fail "APNS: Service not started!"
 
-        -- Wait for an error response or the end of the sending.
-        v       <- takeMVar var
+-- | 'sendAPNS' sends the message through a APNS Server.
+sendAPNS :: APNSAppConfig -> APNSmessage -> IO APNSresult
+sendAPNS config msg = do
+   case apnsChannel config of
+     Nothing          -> fail "APNS: Service not started!"
+     Just requestChan -> do
+        var1       <- newEmptyMVar
+        var2       <- newEmptyMVar
+        
+        writeChan requestChan (var1,msg)
+        Just (errorChan,startNum) <- takeMVar var1 -- waits until the request is attended by the worker thread.
+        
+        tID1       <- forkIO $ do -- waits for an error response.
+                                num <- readChan errorChan
+                                putMVar var2 $ Just num
+
+        tID2       <- forkIO $ do -- waits for the end of the sending.
+                                takeMVar var1
+                                threadDelay $ timeoutTime config -- the purpose of this delay is some more time for a possible error response.
+                                putMVar var2 Nothing
+
+        -- Waits for an error response or the end of the sending.
+        v       <- takeMVar var2
         killThread tID1
         killThread tID2
-        bye ctx
-        contextClose ctx
         case v of
-            Just s  -> return $ APNSresult $ drop s $ deviceTokens msg -- An error occurred.
+            Just s  -> if s >= startNum
+                        then return $ APNSresult $ drop (s+1-startNum) $ deviceTokens msg -- An error occurred.
+                        else return $ APNSresult $ deviceTokens msg -- An old error occurred, so nothing was sent.
             Nothing -> return $ APNSresult [] -- Successful.
 
+
+apnsWorker :: APNSAppConfig -> IO ()
+apnsWorker config = do
+    case apnsChannel config of
+     Nothing          -> fail "APNS: Service not started!"
+     Just requestChan -> do
+        ctx <- connectAPNS config
+        errorChan  <- newChan -- new Error Channel.
+        
+        tID1 <- forkIO $ catch errorChan $ sender 1 requestChan errorChan ctx
+        tID2 <- forkIO $ catch errorChan $ receiver errorChan ctx
+
+        _   <- readChan errorChan
+        killThread tID1
+        killThread tID2
+        CE.catch (contextClose ctx) (\e -> let _ = (e :: CE.SomeException) in return ())
+        apnsWorker config -- restarts.
+
         where
-            loop :: MVar (Maybe Int) 
+            catch :: Chan Int -> IO () -> IO ()
+            catch errorChan m = CE.catch m (\e -> do
+                                    let _ = (e :: CE.SomeException)
+                                    writeChan errorChan 0)
+
+            sender  :: Int32
+                    -> Chan (MVar (Maybe (Chan Int,Int)) , APNSmessage)
+                    -> Chan Int
+                    -> Context
+                    -> IO ()
+            sender n requestChan errorChan c = do -- this function reads the channel and sends the messages.
+                                (var,msg)   <- readChan requestChan
+                                let len = convert $ length $ deviceTokens msg     -- len is the number of messages it will send.
+                                    num = if (n + len :: Int32) < 0 then 1 else n -- to avoid overflow.
+                                echan       <- dupChan errorChan
+                                putMVar var $ Just (echan,convert num) -- Here, notifies that it is attending this request, and provides a duplicated error channel.
+                                ctime       <- getPOSIXTime
+                                loop var c num (createPut msg ctime) $ deviceTokens msg -- sends the messages.
+                                sender (num+len) requestChan errorChan c
+
+            receiver :: Chan Int -> Context -> IO ()
+            receiver errorChan c = do
+                                dat <- recvData c
+                                case runGet (getWord16be >> getWord32be) dat of -- | COMMAND and STATUS | ID |
+                                    Right ident -> writeChan errorChan (convert ident)
+                                    Left _      -> writeChan errorChan 0
+
+            loop :: MVar (Maybe (Chan Int,Int)) 
                 -> Context 
-                -> Int 
-                -> (DeviceToken -> Int -> Put)
+                -> Int32 -- This number is the identifier of this message, so if the sending fails, I will receive this identifier in an error message.
+                -> (DeviceToken -> Int32 -> Put)
                 -> [DeviceToken]
                 -> IO ()
-            loop var _   _   _    []     = do
-                                            threadDelay $ timeoutTime config
-                                            putMVar var Nothing
+            loop var _   _   _    []     = putMVar var Nothing
             loop var ctx num cput (x:xs) = do
                                             sendData ctx $ LB.fromChunks [ (runPut $ cput x num) ]
                                             loop var ctx (num+1) cput xs
 
+
 -- 'createPut' builds the binary block to be sent.
-createPut :: APNSmessage -> NominalDiffTime -> DeviceToken -> Int -> Put
+createPut :: APNSmessage -> NominalDiffTime -> DeviceToken -> Int32 -> Put
 createPut msg ctime dst identifier = do
    let
        -- We convert the text to binary, and then decode the hexadecimal representation.
@@ -117,6 +186,7 @@ createPut msg ctime dst identifier = do
             putLazyByteString bpayload
 
 
+{-
 -- | 'feedBackAPNS' connects with the Feedback service.
 feedBackAPNS :: APNSAppConfig -> IO APNSFeedBackresult
 feedBackAPNS config = do
@@ -165,4 +235,4 @@ feedBackAPNS config = do
                         v <- timeout (timeoutTime config) $ takeMVar var
                         case v of
                             Nothing -> return $ APNSFeedBackresult list
-                            Just t  -> waitAndCheck var (t:list)
+                            Just t  -> waitAndCheck var (t:list)-}

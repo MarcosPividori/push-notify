@@ -8,13 +8,13 @@ module Network.PushNotify.Apns.Constants where
 import Data.Text
 
 cDEVELOPMENT_URL :: String
-cDEVELOPMENT_URL = "gateway.sandbox.push.apple.com"
+cDEVELOPMENT_URL = "localhost"
 
 cDEVELOPMENT_PORT :: Integer
 cDEVELOPMENT_PORT = 2195
 
 cDEVELOPMENT_FEEDBACK_URL :: String
-cDEVELOPMENT_FEEDBACK_URL = "feedback.sandbox.push.apple.com"
+cDEVELOPMENT_FEEDBACK_URL = "localhost"
 
 cDEVELOPMENT_FEEDBACK_PORT :: Integer
 cDEVELOPMENT_FEEDBACK_PORT = 2196

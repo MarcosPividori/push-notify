@@ -15,6 +15,7 @@ module Network.PushNotify.Apns.Types
     ) where
 
 import Network.PushNotify.Apns.Constants
+import Control.Concurrent
 import Data.Default
 import Data.Aeson.Types
 import Data.Text
@@ -31,7 +32,9 @@ data APNSAppConfig = APNSAppConfig
     ,   privateKey  :: String -- ^ private key provided by Apple.
     ,   environment :: Env -- ^ One of the two possible environments.
     ,   timeoutTime :: Int -- ^ The time to wait for a server response. (microseconds)
-    }   deriving Show
+    ,   apnsChannel :: Maybe (Chan ( MVar (Maybe (Chan Int,Int)) , APNSmessage))
+    ,   workerID    :: Maybe ThreadId
+    }
 
 instance Default APNSAppConfig where
     def = APNSAppConfig {
@@ -39,6 +42,8 @@ instance Default APNSAppConfig where
     ,   privateKey  = ""
     ,   environment = Development
     ,   timeoutTime = 50000
+    ,   apnsChannel = Nothing
+    ,   workerID    = Nothing
     }
 
 type DeviceToken = Text -- Binary token stored in hexadecimal representation as text.
