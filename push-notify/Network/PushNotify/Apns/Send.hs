@@ -86,6 +86,8 @@ sendAPNS config msg = do
         
         writeChan requestChan (var1,msg)
         Just (errorChan,startNum) <- takeMVar var1 -- waits until the request is attended by the worker thread.
+        -- errorChan -> is the channel where I will receive an error message if the sending fails.
+        -- startNum  -> My messages will be identified from startNum to (startNum + num of messages-1)
         
         tID1       <- forkIO $ do -- waits for an error response.
                                 num <- readChan errorChan
@@ -101,7 +103,7 @@ sendAPNS config msg = do
         killThread tID1
         killThread tID2
         case v of
-            Just s  -> if s >= startNum
+            Just s  -> if s >= startNum -- an error response with a identifier s. s identifies the last notification that was successfully sent.
                         then return $ APNSresult $ drop (s+1-startNum) $ deviceTokens msg -- An error occurred.
                         else return $ APNSresult $ deviceTokens msg -- An old error occurred, so nothing was sent.
             Nothing -> return $ APNSresult [] -- Successful.
@@ -112,25 +114,28 @@ apnsWorker config = do
     case apnsChannel config of
      Nothing          -> fail "APNS: Service not started!"
      Just requestChan -> do
-        ctx <- connectAPNS config
+        ctx        <- connectAPNS config
         errorChan  <- newChan -- new Error Channel.
         lock       <- newMVar ()
+        errorVar   <- newEmptyMVar
         
-        tID1 <- forkIO $ catch errorChan $ sender 1 lock requestChan errorChan ctx
-        tID2 <- forkIO $ catch errorChan $ receiver errorChan ctx
+        tID1       <- forkIO $ catch errorVar $ sender 1 lock requestChan errorChan ctx
+        tID2       <- forkIO $ catch errorVar $ receiver errorVar ctx
 
-        _   <- readChan errorChan
+        v          <- takeMVar errorVar
         takeMVar lock
+        writeChan errorChan v -- v is an int representing: 0 -> internal worker error.
+                              --                           n -> the identifier received in an error msg. This represent, the last message that was sent successfully.
         killThread tID1
         killThread tID2
         CE.catch (contextClose ctx) (\e -> let _ = (e :: CE.SomeException) in return ())
         apnsWorker config -- restarts.
 
         where
-            catch :: Chan Int -> IO () -> IO ()
-            catch errorChan m = CE.catch m (\e -> do
+            catch :: MVar Int -> IO () -> IO ()
+            catch errorVar m = CE.catch m (\e -> do
                                     let _ = (e :: CE.SomeException)
-                                    writeChan errorChan 0)
+                                    putMVar errorVar 0)
 
             sender  :: Int32
                     -> MVar ()
@@ -139,7 +144,7 @@ apnsWorker config = do
                     -> Context
                     -> IO ()
             sender n lock requestChan errorChan c = do -- this function reads the channel and sends the messages.
-                                takeMVar lock
+                                takeMVar lock 
                                 (var,msg)   <- readChan requestChan
                                 let len = convert $ length $ deviceTokens msg     -- len is the number of messages it will send.
                                     num = if (n + len :: Int32) < 0 then 1 else n -- to avoid overflow.
@@ -150,12 +155,12 @@ apnsWorker config = do
                                 loop var c num (createPut msg ctime) $ deviceTokens msg -- sends the messages.
                                 sender (num+len) lock requestChan errorChan c
 
-            receiver :: Chan Int -> Context -> IO ()
-            receiver errorChan c = do
+            receiver :: MVar Int -> Context -> IO ()
+            receiver errorVar c = do
                                 dat <- recvData c
                                 case runGet (getWord16be >> getWord32be) dat of -- | COMMAND and STATUS | ID |
-                                    Right ident -> writeChan errorChan (convert ident)
-                                    Left _      -> writeChan errorChan 0
+                                    Right ident -> putMVar errorVar (convert ident)
+                                    Left _      -> putMVar errorVar 0
 
             loop :: MVar (Maybe (Chan Int,Int)) 
                 -> Context 
