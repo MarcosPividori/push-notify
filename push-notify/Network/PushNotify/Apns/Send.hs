@@ -120,6 +120,7 @@ apnsWorker config = do
         tID2 <- forkIO $ catch errorChan $ receiver errorChan ctx
 
         _   <- readChan errorChan
+        takeMVar lock
         killThread tID1
         killThread tID2
         CE.catch (contextClose ctx) (\e -> let _ = (e :: CE.SomeException) in return ())
