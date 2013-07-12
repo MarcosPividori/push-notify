@@ -114,8 +114,9 @@ apnsWorker config = do
      Just requestChan -> do
         ctx <- connectAPNS config
         errorChan  <- newChan -- new Error Channel.
+        lock       <- newMVar ()
         
-        tID1 <- forkIO $ catch errorChan $ sender 1 requestChan errorChan ctx
+        tID1 <- forkIO $ catch errorChan $ sender 1 lock requestChan errorChan ctx
         tID2 <- forkIO $ catch errorChan $ receiver errorChan ctx
 
         _   <- readChan errorChan
@@ -131,19 +132,22 @@ apnsWorker config = do
                                     writeChan errorChan 0)
 
             sender  :: Int32
+                    -> MVar ()
                     -> Chan (MVar (Maybe (Chan Int,Int)) , APNSmessage)
                     -> Chan Int
                     -> Context
                     -> IO ()
-            sender n requestChan errorChan c = do -- this function reads the channel and sends the messages.
+            sender n lock requestChan errorChan c = do -- this function reads the channel and sends the messages.
+                                takeMVar lock
                                 (var,msg)   <- readChan requestChan
                                 let len = convert $ length $ deviceTokens msg     -- len is the number of messages it will send.
                                     num = if (n + len :: Int32) < 0 then 1 else n -- to avoid overflow.
                                 echan       <- dupChan errorChan
                                 putMVar var $ Just (echan,convert num) -- Here, notifies that it is attending this request, and provides a duplicated error channel.
+                                putMVar lock ()
                                 ctime       <- getPOSIXTime
                                 loop var c num (createPut msg ctime) $ deviceTokens msg -- sends the messages.
-                                sender (num+len) requestChan errorChan c
+                                sender (num+len) lock requestChan errorChan c
 
             receiver :: Chan Int -> Context -> IO ()
             receiver errorChan c = do
