@@ -69,7 +69,7 @@ function pushDummyServer(stream) {
         binary.parse(data)
               .loop(function (end,v) {
                     this.word8('command')
-                        .word32bu('pduid')
+                        .word32bu('identifier')
                         .word32bu('expiry')
                         .word16bu('tokenlength')
                         .buffer('token', 'tokenlength')
@@ -87,16 +87,18 @@ function pushDummyServer(stream) {
                                     vars.payload = 'ERROR: INVALID JSON PAYLOAD ' + util.inspect(e);
                                 }
                                 console.log(vars);
-                                if ( vars.command != 1 || (990 < (Math.random()*1000))) {  
+                                if ( vars.command != 1 || 
+                                    (0.999 < Math.random()) //this is to add the possibility of an internal error.
+                                    ) {  
                                     // Send error pdu back and close connection
                                     var errorpdu = new Buffer(1 + 1 + 4);
                                     var command = 8; // error command
                                     var statuscode = 1; // Just some code
-                                    var pduid = vars.pduid;
+                                    var identifier = vars.identifier;
     
                                     errorpdu.writeUInt8(command, 0);
                                     errorpdu.writeUInt8(statuscode, 1);
-                                    errorpdu.writeUInt32BE(pduid, 2);
+                                    errorpdu.writeUInt32BE(identifier-1, 2);
                                     console.log('=== SEND ERROR: ' + hex.bintohex(errorpdu))
                                     stream.write(errorpdu);
                                     stream.end();
