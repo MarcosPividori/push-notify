@@ -32,7 +32,8 @@ main = do
             let confg = def{
                             certificate = "public-cert.pem"
                         ,   privateKey  = "private-key.pem"
-                        ,   environment = Development }
+                        ,   environment = Development 
+                        ,   timeoutTime = 100000 }
 
             let msg = def{
                             deviceTokens = map (pack . show) [1 .. 100]
@@ -43,7 +44,7 @@ main = do
             loop 5 msg newConfg var
             where
                 loop 0 msg newConfg var = do
-                                            threadDelay 1000000
+                                            threadDelay 200000
                                             closeAPNS newConfg
                 loop n msg newConfg var = do            
                            forkIO $ do
