@@ -11,6 +11,8 @@ import Network.PushNotify.Apns.Types
 import Network.PushNotify.Apns.Constants
 
 import Control.Concurrent
+import Control.Concurrent.STM.TChan
+import Control.Monad.STM
 import Data.Certificate.X509            (X509)
 import Data.Convertible                 (convert)
 import Data.Default
@@ -64,7 +66,7 @@ connectAPNS config = do
 -- | 'startAPNS' starts the APNS service.
 startAPNS :: APNSAppConfig -> IO APNSAppConfig
 startAPNS config = do
-        c       <- newChan
+        c       <- newTChanIO
         let newConfig = config{apnsChannel = Just c}
         tID     <- forkIO $ apnsWorker newConfig
         return newConfig{workerID = Just tID}
@@ -84,7 +86,7 @@ sendAPNS config msg = do
         var1       <- newEmptyMVar
         var2       <- newEmptyMVar
         
-        writeChan requestChan (var1,msg)
+        atomically $ writeTChan requestChan (var1,msg)
         Just (errorChan,startNum) <- takeMVar var1 -- waits until the request is attended by the worker thread.
         -- errorChan -> is the channel where I will receive an error message if the sending fails.
         -- startNum  -> My messages will be identified from startNum to (startNum + num of messages-1)
@@ -123,7 +125,7 @@ apnsWorker config = do
         tID2       <- forkIO $ catch errorVar $ receiver errorVar ctx
 
         v          <- takeMVar errorVar
-        --takeMVar lock
+        takeMVar lock
         writeChan errorChan v -- v is an int representing: 0 -> internal worker error.
                               --                           n -> the identifier received in an error msg. This represent, the last message that was sent successfully.
         killThread tID1
@@ -139,18 +141,25 @@ apnsWorker config = do
 
             sender  :: Int32
                     -> MVar ()
-                    -> Chan (MVar (Maybe (Chan Int,Int)) , APNSmessage)
+                    -> TChan (MVar (Maybe (Chan Int,Int)) , APNSmessage)
                     -> Chan Int
                     -> Context
                     -> IO ()
             sender n lock requestChan errorChan c = do -- this function reads the channel and sends the messages.
-                                --takeMVar lock 
-                                (var,msg)   <- readChan requestChan
+                                
+                                atomically $ peekTChan requestChan
+                                -- Now there is at least one element in the channel, so the next readTChan won't block.
+                                takeMVar lock
+                                
+                                (var,msg)   <- atomically $ readTChan requestChan
+                                
                                 let len = convert $ length $ deviceTokens msg     -- len is the number of messages it will send.
                                     num = if (n + len :: Int32) < 0 then 1 else n -- to avoid overflow.
                                 echan       <- dupChan errorChan
                                 putMVar var $ Just (echan,convert num) -- Here, notifies that it is attending this request, and provides a duplicated error channel.
-                                --putMVar lock ()
+                                
+                                putMVar lock ()
+                                
                                 ctime       <- getPOSIXTime
                                 loop var c num (createPut msg ctime) $ deviceTokens msg -- sends the messages.
                                 sender (num+len) lock requestChan errorChan c
@@ -159,8 +168,7 @@ apnsWorker config = do
             receiver errorVar c = do
                                 dat <- recvData c
                                 case runGet (getWord16be >> getWord32be) dat of -- | COMMAND and STATUS | ID |
-                                    Right ident -> do
-                                                        putMVar errorVar (convert ident)
+                                    Right ident -> putMVar errorVar (convert ident)
                                     Left _      -> putMVar errorVar 0
 
             loop :: MVar (Maybe (Chan Int,Int)) 

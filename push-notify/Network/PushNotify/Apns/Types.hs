@@ -16,6 +16,7 @@ module Network.PushNotify.Apns.Types
 
 import Network.PushNotify.Apns.Constants
 import Control.Concurrent
+import Control.Concurrent.STM.TChan
 import Data.Default
 import Data.Aeson.Types
 import Data.Text
@@ -32,7 +33,7 @@ data APNSAppConfig = APNSAppConfig
     ,   privateKey  :: String -- ^ private key provided by Apple.
     ,   environment :: Env -- ^ One of the two possible environments.
     ,   timeoutTime :: Int -- ^ The time to wait for a server response. (microseconds)
-    ,   apnsChannel :: Maybe (Chan ( MVar (Maybe (Chan Int,Int)) , APNSmessage))
+    ,   apnsChannel :: Maybe (TChan ( MVar (Maybe (Chan Int,Int)) , APNSmessage))
     ,   workerID    :: Maybe ThreadId
     }
 
@@ -41,7 +42,7 @@ instance Default APNSAppConfig where
         certificate = ""
     ,   privateKey  = ""
     ,   environment = Development
-    ,   timeoutTime = 50000
+    ,   timeoutTime = 250000
     ,   apnsChannel = Nothing
     ,   workerID    = Nothing
     }
