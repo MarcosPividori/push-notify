@@ -123,7 +123,7 @@ apnsWorker config = do
         tID2       <- forkIO $ catch errorVar $ receiver errorVar ctx
 
         v          <- takeMVar errorVar
-        takeMVar lock
+        --takeMVar lock
         writeChan errorChan v -- v is an int representing: 0 -> internal worker error.
                               --                           n -> the identifier received in an error msg. This represent, the last message that was sent successfully.
         killThread tID1
@@ -144,13 +144,13 @@ apnsWorker config = do
                     -> Context
                     -> IO ()
             sender n lock requestChan errorChan c = do -- this function reads the channel and sends the messages.
-                                takeMVar lock 
+                                --takeMVar lock 
                                 (var,msg)   <- readChan requestChan
                                 let len = convert $ length $ deviceTokens msg     -- len is the number of messages it will send.
                                     num = if (n + len :: Int32) < 0 then 1 else n -- to avoid overflow.
                                 echan       <- dupChan errorChan
                                 putMVar var $ Just (echan,convert num) -- Here, notifies that it is attending this request, and provides a duplicated error channel.
-                                putMVar lock ()
+                                --putMVar lock ()
                                 ctime       <- getPOSIXTime
                                 loop var c num (createPut msg ctime) $ deviceTokens msg -- sends the messages.
                                 sender (num+len) lock requestChan errorChan c
@@ -159,7 +159,8 @@ apnsWorker config = do
             receiver errorVar c = do
                                 dat <- recvData c
                                 case runGet (getWord16be >> getWord32be) dat of -- | COMMAND and STATUS | ID |
-                                    Right ident -> putMVar errorVar (convert ident)
+                                    Right ident -> do
+                                                        putMVar errorVar (convert ident)
                                     Left _      -> putMVar errorVar 0
 
             loop :: MVar (Maybe (Chan Int,Int)) 
