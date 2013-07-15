@@ -42,7 +42,7 @@ example2 = do
             manager     <- startAPNS confg
             var         <- newEmptyMVar
             putMVar var ()
-            loop 10000 manager var
+            loop 1000 manager var
             where
                 loop 0 manager var = do
                                             threadDelay 50000000
