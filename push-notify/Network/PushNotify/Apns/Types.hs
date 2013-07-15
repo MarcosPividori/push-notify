@@ -6,6 +6,7 @@
 
 module Network.PushNotify.Apns.Types
     ( APNSAppConfig(..)
+    , APNSManager(..)
     , APNSmessage(..)
     , AlertDictionary(..)
     , APNSresult(..)
@@ -29,22 +30,24 @@ data Env = Development | Production deriving Show
 
 -- | 'APNSAppConfig' represents the main necessary information for sending notifications through APNS.
 data APNSAppConfig = APNSAppConfig
-    {   certificate :: String -- ^ certificate provided by Apple.
-    ,   privateKey  :: String -- ^ private key provided by Apple.
-    ,   environment :: Env -- ^ One of the two possible environments.
-    ,   timeoutTime :: Int -- ^ The time to wait for a server response. (microseconds)
-    ,   apnsChannel :: Maybe (TChan ( MVar (Maybe (Chan Int,Int)) , APNSmessage))
-    ,   workerID    :: Maybe ThreadId
+    {   certificate  :: String -- ^ certificate provided by Apple.
+    ,   privateKey   :: String -- ^ private key provided by Apple.
+    ,   environment  :: Env -- ^ One of the two possible environments.
+    ,   timeoutLimit :: Int -- ^ The time to wait for a server response. (microseconds)
     }
 
 instance Default APNSAppConfig where
     def = APNSAppConfig {
-        certificate = ""
-    ,   privateKey  = ""
-    ,   environment = Development
-    ,   timeoutTime = 250000
-    ,   apnsChannel = Nothing
-    ,   workerID    = Nothing
+        certificate  = ""
+    ,   privateKey   = ""
+    ,   environment  = Development
+    ,   timeoutLimit = 1000000
+    }
+
+data APNSManager = APNSManager
+    {   mApnsChannel  :: TChan ( MVar (Maybe (Chan Int,Int)) , APNSmessage)
+    ,   mWorkerID     :: ThreadId
+    ,   mTimeoutLimit :: Int
     }
 
 type DeviceToken = Text -- Binary token stored in hexadecimal representation as text.
