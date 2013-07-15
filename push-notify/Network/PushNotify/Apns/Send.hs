@@ -76,7 +76,8 @@ startAPNS :: APNSAppConfig -> IO APNSManager
 startAPNS config = do
         c       <- newTChanIO
         ref     <- newIORef $ Just ()
-        tID     <- forkIO $ apnsWorker config c
+        tID     <- forkIO $ CE.catch (apnsWorker config c) (\e -> let _ = (e :: CE.SomeException) 
+                                                                  in atomicModifyIORef ref (\_ -> (Nothing,())))
         return $ APNSManager ref c tID $ timeoutLimit config
 
 -- | 'closeAPNS' stops the APNS service.
