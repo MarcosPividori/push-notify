@@ -18,8 +18,9 @@ module Network.PushNotify.Apns.Types
 import Network.PushNotify.Apns.Constants
 import Control.Concurrent
 import Control.Concurrent.STM.TChan
-import Data.Default
 import Data.Aeson.Types
+import Data.Default
+import Data.IORef
 import Data.Text
 import Control.Monad.Writer
 import Data.HashMap.Strict (insert,HashMap)
@@ -45,7 +46,8 @@ instance Default APNSAppConfig where
     }
 
 data APNSManager = APNSManager
-    {   mApnsChannel  :: TChan ( MVar (Maybe (Chan Int,Int)) , APNSmessage)
+    {   mState        :: IORef (Maybe ())
+    ,   mApnsChannel  :: TChan ( MVar (Maybe (Chan Int,Int)) , APNSmessage)
     ,   mWorkerID     :: ThreadId
     ,   mTimeoutLimit :: Int
     }

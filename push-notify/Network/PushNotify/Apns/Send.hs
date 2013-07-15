@@ -16,13 +16,14 @@ import Network.PushNotify.Apns.Types
 import Network.PushNotify.Apns.Constants
 
 import Control.Concurrent
-import Control.Concurrent.STM.TChan
 import Control.Concurrent.Async
+import Control.Concurrent.STM.TChan
 import Control.Monad.STM
 import Data.Certificate.X509            (X509)
 import Data.Convertible                 (convert)
 import Data.Default
 import Data.Int
+import Data.IORef
 import Data.Serialize
 import Data.Text.Encoding               (encodeUtf8,decodeUtf8)
 import Data.Time.Clock
@@ -74,16 +75,23 @@ connectAPNS config = do
 startAPNS :: APNSAppConfig -> IO APNSManager
 startAPNS config = do
         c       <- newTChanIO
+        ref     <- newIORef $ Just ()
         tID     <- forkIO $ apnsWorker config c
-        return $ APNSManager c tID $ timeoutLimit config
+        return $ APNSManager ref c tID $ timeoutLimit config
 
 -- | 'closeAPNS' stops the APNS service.
 closeAPNS :: APNSManager -> IO ()
-closeAPNS m = killThread $ mWorkerID m
+closeAPNS m = do
+                atomicModifyIORef (mState m) (\_ -> (Nothing,()))
+                killThread $ mWorkerID m
 
 -- | 'sendAPNS' sends the message through a APNS Server.
 sendAPNS :: APNSManager -> APNSmessage -> IO APNSresult
 sendAPNS m msg = do
+    s <- readIORef $ mState m
+    case s of
+      Nothing -> fail "APNS Service closed."
+      Just () -> do     
         let requestChan = mApnsChannel m
         var1 <- newEmptyMVar
 
