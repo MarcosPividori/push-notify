@@ -17,6 +17,7 @@ import Network.PushNotify.Apns.Constants
 
 import Control.Concurrent
 import Control.Concurrent.STM.TChan
+import Control.Concurrent.Async
 import Control.Monad.STM
 import Data.Certificate.X509            (X509)
 import Data.Convertible                 (convert)
@@ -84,71 +85,57 @@ closeAPNS m = killThread $ mWorkerID m
 sendAPNS :: APNSManager -> APNSmessage -> IO APNSresult
 sendAPNS m msg = do
         let requestChan = mApnsChannel m
-        var1       <- newEmptyMVar
-        var2       <- newEmptyMVar
-        
+        var1 <- newEmptyMVar
+
         atomically $ writeTChan requestChan (var1,msg)
         Just (errorChan,startNum) <- takeMVar var1 -- waits until the request is attended by the worker thread.
         -- errorChan -> is the channel where I will receive an error message if the sending fails.
         -- startNum  -> My messages will be identified from startNum to (startNum + num of messages-1)
         
-        tID1       <- forkIO $ do -- waits for an error response.
-                                num <- readChan errorChan
-                                putMVar var2 $ Just num
+        v    <- race  (readChan errorChan) (takeMVar var1 >> (threadDelay $ mTimeoutLimit m))
 
-        tID2       <- forkIO $ do -- waits for the end of the sending.
-                                takeMVar var1
-                                threadDelay $ mTimeoutLimit m -- the purpose of this delay is some more time
-                                                             -- for a possible error response.
-                                putMVar var2 Nothing
-
-        -- Waits for an error response or the end of the sending.
-        v          <- takeMVar var2
-        killThread tID1
-        killThread tID2
-        putStrLn $ show v
         case v of
-            Just s  -> if s >= startNum 
-                        -- an error response with a identifier s. 
-                        -- s identifies the last notification that was successfully sent.
+            Left s  -> if s >= startNum -- an error response, s identifies the last notification that was successfully sent.
                         then return $ APNSresult $ drop (s+1-startNum) $ deviceTokens msg -- An error occurred.
                         else return $ APNSresult $ deviceTokens msg -- An old error occurred, so nothing was sent.
-            Nothing -> return $ APNSresult [] -- Successful.
-
+            Right _ -> return $ APNSresult [] -- Successful.
 
 apnsWorker :: APNSAppConfig -> TChan ( MVar (Maybe (Chan Int,Int)) , APNSmessage) -> IO ()
 apnsWorker config requestChan = do
         ctx        <- connectAPNS config
         errorChan  <- newChan -- new Error Channel.
         lock       <- newMVar ()
-        errorVar   <- newEmptyMVar
         
-        tID1       <- forkIO $ catch errorVar $ sender 1 lock requestChan errorChan ctx
-        tID2       <- forkIO $ catch errorVar $ receiver errorVar ctx
+        s          <- async (catch $ sender 1 lock requestChan errorChan ctx)
+        r          <- async (catch $ receiver ctx)
+        res        <- waitEither s r
 
-        v          <- takeMVar errorVar
-        takeMVar lock
-        writeChan errorChan v -- v is an int representing: 
-                              -- 0 -> internal worker error.
-                              -- n -> the identifier received in an error msg.
-                              --      This represent, the last message that was sent successfully.
-        killThread tID1
-        killThread tID2
+        case res of
+            Left  _ -> do
+                            cancel r
+                            writeChan errorChan 0
+            Right v -> do
+                            takeMVar lock
+                            cancel s
+                            writeChan errorChan v -- v is an int representing: 
+                                        -- 0 -> internal worker error.
+                                        -- n -> the identifier received in an error msg.
+                                        --      This represent, the last message that was sent successfully.
         CE.catch (contextClose ctx) (\e -> let _ = (e :: CE.SomeException) in return ())
         apnsWorker config requestChan -- restarts.
 
         where
-            catch :: MVar Int -> IO () -> IO ()
-            catch errorVar m = CE.catch m (\e -> do
-                                    let _ = (e :: CE.SomeException)
-                                    putMVar errorVar 0)
-
+            catch :: IO Int -> IO Int
+            catch m = CE.catch m (\e -> do
+                            let _ = (e :: CE.SomeException)
+                            return 0)
+            
             sender  :: Int32
                     -> MVar ()
                     -> TChan (MVar (Maybe (Chan Int,Int)) , APNSmessage)
                     -> Chan Int
                     -> Context
-                    -> IO ()
+                    -> IO Int
             sender n lock requestChan errorChan c = do -- this function reads the channel and sends the messages.
                                 
                     atomically $ peekTChan requestChan
@@ -168,12 +155,12 @@ apnsWorker config requestChan = do
                     loop var c num (createPut msg ctime) $ deviceTokens msg -- sends the messages.
                     sender (num+len) lock requestChan errorChan c
 
-            receiver :: MVar Int -> Context -> IO ()
-            receiver errorVar c = do
+            receiver :: Context -> IO Int
+            receiver c = do
                     dat <- recvData c
                     case runGet (getWord16be >> getWord32be) dat of -- | COMMAND and STATUS | ID |
-                        Right ident -> putMVar errorVar (convert ident)
-                        Left _      -> putMVar errorVar 0
+                        Right ident -> return (convert ident)
+                        Left _      -> return 0
 
             loop :: MVar (Maybe (Chan Int,Int)) 
                 -> Context 
@@ -181,8 +168,8 @@ apnsWorker config requestChan = do
                          -- I will receive this identifier in an error message.
                 -> (DeviceToken -> Int32 -> Put)
                 -> [DeviceToken]
-                -> IO ()
-            loop var _   _   _    []     = putMVar var Nothing
+                -> IO Bool
+            loop var _   _   _    []     = tryPutMVar var Nothing
             loop var ctx num cput (x:xs) = do
                     sendData ctx $ LB.fromChunks [ (runPut $ cput x num) ]
                     loop var ctx (num+1) cput xs
@@ -232,8 +219,7 @@ feedBackAPNS config = do
         ctx     <- connectFeedBackAPNS config
         var     <- newEmptyMVar
 
-        -- To receive.
-        tID     <- forkIO $ loopReceive var ctx
+        tID     <- forkIO $ loopReceive var ctx -- To receive.
 
         res     <- waitAndCheck var []
         killThread tID

@@ -41,7 +41,7 @@ instance Default APNSAppConfig where
         certificate  = ""
     ,   privateKey   = ""
     ,   environment  = Development
-    ,   timeoutLimit = 1000000
+    ,   timeoutLimit = 200000
     }
 
 data APNSManager = APNSManager
