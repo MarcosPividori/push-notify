@@ -1,3 +1,5 @@
 This server sample was taken from : https://github.com/tikonen/blog/tree/master/apn-test-server
 
+Also, it has been modified in order to be suitable for testing the APNS api.
+
 For more info: http://bravenewmethod.wordpress.com/2013/04/20/test-server-for-apple-push-notification-and-feedback-integration/
