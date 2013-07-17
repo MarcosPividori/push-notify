@@ -2,7 +2,7 @@
 {-# LANGUAGE OverloadedStrings #-}
 
 -- | This Module define the main contants for sending Push Notifications through Microsoft Push Notification Service.
-module Constants where
+module Network.PushNotify.Mpns.Constants where
 
 import Network.HTTP.Types
 import Data.ByteString

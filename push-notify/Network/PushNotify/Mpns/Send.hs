@@ -4,13 +4,14 @@
              QuasiQuotes, MultiParamTypeClasses, GeneralizedNewtypeDeriving, FlexibleContexts, GADTs #-}
 
 -- | This Module define the main function to send Push Notifications through Microsoft Push Notification Service.
-module Send (sendMPNS) where
+module Network.PushNotify.Mpns.Send (sendMPNS) where
 
-import Constants
-import Types
+import Network.PushNotify.Mpns.Constants
+import Network.PushNotify.Mpns.Types
 
 import Data.Functor
 import Data.String
+import Data.Conduit                 (($$+-))
 import Data.Text                    (Text, pack, unpack, empty)
 import Data.Text.Encoding           (decodeUtf8)
 import Text.XML
@@ -20,7 +21,7 @@ import Control.Monad.Trans.Resource (MonadResource)
 import Control.Retry
 import Network.HTTP.Types
 import Network.HTTP.Conduit         (http, parseUrl, withManager, RequestBody (RequestBodyLBS),
-                                     requestBody, requestHeaders, method, Response (..), Manager,
+                                     requestBody, requestHeaders, Response(..), method, Manager,
                                      Request)
 
 retrySettingsMPNS = RetrySettings {
@@ -33,9 +34,15 @@ retrySettingsMPNS = RetrySettings {
 sendMPNS :: MPNSAppConfig -> MPNSmessage -> IO MPNSresult
 sendMPNS cnfg msg = do
                         r <- mapM (send cnfg msg) $ deviceURIs msg
-                        return $ MPNSresult r
+                        return $ MPNSresult{
+                            results  = map (\(x,Just y) -> (x,y)) $ filter (isJust . snd) r
+                        ,   toResend = map fst                    $ filter (not . isJust . snd) r
+                        }
+                    where
+                        isJust (Just _)  = True
+                        isJust (Nothing) = False
 
-send :: MPNSAppConfig -> MPNSmessage -> DeviceURI -> IO (DeviceURI , MPNSinfo)
+send :: MPNSAppConfig -> MPNSmessage -> DeviceURI -> IO (DeviceURI , Maybe MPNSinfo)
 send cnfg msg deviceUri = withManager $ \manager -> do
     let valueBS   = renderLBS def $ rest msg
     req' <- liftIO $ parseUrl $ unpack deviceUri
@@ -64,15 +71,18 @@ send cnfg msg deviceUri = withManager $ \manager -> do
 
 -- 'retry' try numRet attemps to send the messages.
 retry :: (MonadBaseControl IO m,MonadResource m)
-      => Request m -> Manager -> Int -> m MPNSinfo
+      => Request m -> Manager -> Int -> m (Maybe MPNSinfo)
 retry req manager numRet = do
-        Response _ _ headers _ <- retrying (retrySettingsMPNS{numRetries = limitedRetries numRet})
-                                           ifRetry $ http req manager
-        return $ handleSuccessfulResponse headers
+        response <- retrying (retrySettingsMPNS{numRetries = limitedRetries numRet})
+                             ifRetry $ http req manager
+        responseBody response $$+- return ()
+        if (statusCode $ responseStatus response) >= 500
+          then return Nothing -- Persistent server internal error after retrying
+          else return $ Just $ handleSuccessfulResponse $ responseHeaders response
+        where
+            ifRetry x = (statusCode $ responseStatus x) >= 500
 
-        where ifRetry x = (statusCode $ responseStatus x) >= 500
-
--- 'handleSuccessfulResponse' analyzes the server response and generates useful information.
+-- 'handleSuccessfulResponse' analyzes the server response.
 handleSuccessfulResponse :: ResponseHeaders -> MPNSinfo
 handleSuccessfulResponse headers = MPNSinfo {
         notificationStatus = decodeUtf8 <$> lookup cNotificationStatus     headers

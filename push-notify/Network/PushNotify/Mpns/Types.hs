@@ -1,7 +1,7 @@
 -- GSoC 2013 - Communicating with mobile devices.
 {-# LANGUAGE OverloadedStrings, FlexibleContexts #-}
 -- | This Module define the main data types for sending Push Notifications through Microsoft Push Notification Service.
-module Types
+module Network.PushNotify.Mpns.Types
     ( MPNSAppConfig(..)
     , MPNSmessage(..)
     , MPNSresult(..)
@@ -11,7 +11,7 @@ module Types
     , DeviceURI
     ) where
 
-import Constants
+import Network.PushNotify.Mpns.Constants
 import Data.Default
 import Data.Text
 import Text.XML
@@ -20,7 +20,7 @@ import Control.Monad.Writer
 
 -- | 'MPNSAppConfig' represents the main necessary information for sending notifications through MPNS.
 data MPNSAppConfig = MPNSAppConfig{
-        numRet :: Int-- to be completed
+        numRet :: Int
     }   deriving Show
 
 instance Default MPNSAppConfig where
@@ -53,7 +53,9 @@ instance Default MPNSmessage where
 
 -- | 'MPNSresult' represents information about messages after a communication with MPNS Servers.
 data MPNSresult = MPNSresult{
-        results :: [(DeviceURI,MPNSinfo)]
+        results  :: [(DeviceURI,MPNSinfo)]
+    ,   toResend :: [DeviceURI] -- ^ Failed URIs that I need to resend the message to,
+                                -- ^ because there was a problem.
     } deriving Show
 
 data MPNSinfo = MPNSinfo {
