@@ -19,6 +19,7 @@ import Control.Monad.Writer
 -- | 'GCMAppConfig' represents the main necessary information for sending notifications through GCM.
 data GCMAppConfig = GCMAppConfig
     {   apiKey :: Text
+    ,   numRet :: Int
     }   deriving Show
 
 

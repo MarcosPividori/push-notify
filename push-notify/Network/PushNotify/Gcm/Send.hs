@@ -36,8 +36,8 @@ retrySettingsGCM = RetrySettings {
 }
 
 -- | 'sendGCM' sends the message through a GCM Server.
-sendGCM :: GCMAppConfig -> GCMmessage -> Int -> IO GCMresult
-sendGCM cnfg msg numRet = withManager $ \manager -> do
+sendGCM :: GCMAppConfig -> GCMmessage -> IO GCMresult
+sendGCM cnfg msg = withManager $ \manager -> do
     let
         value   = toJSON msg
         valueBS = encode value
@@ -50,17 +50,17 @@ sendGCM cnfg msg numRet = withManager $ \manager -> do
                         ,   ("Authorization", fromString $ unpack $ apiKey cnfg) -- API Key. (provided by Google)
                         ]
               }
-    retry req manager numRet msg
+    retry req manager (numRet cnfg) msg
 
 -- 'retry' try numRet attemps to send the messages.
 retry :: (MonadBaseControl IO m,MonadResource m)
         => Request m -> Manager -> Int -> GCMmessage -> m GCMresult
 retry req manager numRet msg = do
-        Response status version headers body <- retrying (
+        response <- retrying (
                                 retrySettingsGCM{numRetries = limitedRetries numRet}) ifRetry $ http req manager
-        if (statusCode $ status) >= 500
+        if (statusCode $ responseStatus response) >= 500
           then
-            case Prelude.lookup (fromString $ unpack cRETRY_AFTER) headers of
+            case Prelude.lookup (fromString $ unpack cRETRY_AFTER) (responseHeaders response) of
                 Nothing ->  fail "Persistent server internal error after retrying"
                 Just t  ->  do
                                 let time = (read (B.unpack t)) :: Int -- I need to check this line
@@ -68,13 +68,13 @@ retry req manager numRet msg = do
                                 retry req manager (numRet-1) msg 
           else
             do
-                resValue <- body $$+- sinkParser json
+                resValue <- responseBody response $$+- sinkParser json
                 liftIO $ handleSucessfulResponse resValue msg
         
         where ifRetry x = if (statusCode $ responseStatus x) >= 500
                             then case Prelude.lookup (fromString $ unpack cRETRY_AFTER) (responseHeaders x) of
-                                    Nothing ->  True  -- Internal Server error, and don't specify a time to wait
-                                    Just t  ->  False -- Internal Server error, and specify a time to wait
+                                    Nothing ->  True  -- Internal Server error, and don't specify time to wait
+                                    Just t  ->  False -- Internal Server error, and specify time to wait
                             else False
 
 getValue :: FromJSON b => Text -> Map Text Value -> Maybe b
