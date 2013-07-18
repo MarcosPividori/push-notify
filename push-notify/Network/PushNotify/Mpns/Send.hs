@@ -20,14 +20,15 @@ import Control.Monad.Trans.Control  (MonadBaseControl)
 import Control.Monad.Trans.Resource (MonadResource)
 import Control.Retry
 import Network.HTTP.Types
+import Network.TLS.Extra            (fileReadCertificate,fileReadPrivateKey)
 import Network.HTTP.Conduit         (http, parseUrl, withManager, RequestBody (RequestBodyLBS),
                                      requestBody, requestHeaders, Response(..), method, Manager,
-                                     Request)
+                                     Request(..))
 
 retrySettingsMPNS = RetrySettings {
-    backoff = True
-,   baseDelay = 100
-,   numRetries = limitedRetries 1
+    backoff     = True
+,   baseDelay   = 100
+,   numRetries  = limitedRetries 1
 }
 
 -- | 'sendMPNS' sends the message through a MPNS Server.
@@ -45,7 +46,15 @@ sendMPNS cnfg msg = do
 send :: MPNSAppConfig -> MPNSmessage -> DeviceURI -> IO (DeviceURI , Maybe MPNSinfo)
 send cnfg msg deviceUri = withManager $ \manager -> do
     let valueBS   = renderLBS def $ rest msg
-    req' <- liftIO $ parseUrl $ unpack deviceUri
+    req' <- liftIO $ case useSecure cnfg of
+                        False   -> parseUrl $ unpack deviceUri
+                        True    -> do
+                                    cert    <- fileReadCertificate $ certificate cnfg
+                                    key     <- fileReadPrivateKey  $ privateKey  cnfg
+                                    r <- (parseUrl $ unpack deviceUri)
+                                    return r{ 
+                                            clientCertificates = [(cert, Just key)]
+                                        ,   secure             = True }
     let 
         interval = case target msg of
                         Tile        -> 1

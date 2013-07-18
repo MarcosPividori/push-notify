@@ -20,12 +20,18 @@ import Control.Monad.Writer
 
 -- | 'MPNSAppConfig' represents the main necessary information for sending notifications through MPNS.
 data MPNSAppConfig = MPNSAppConfig{
-        numRet :: Int
+        numRet       :: Int
+    ,   useSecure    :: Bool
+    ,   certificate  :: String -- ^ certificate.
+    ,   privateKey   :: String -- ^ private key.
     }   deriving Show
 
 instance Default MPNSAppConfig where
     def = MPNSAppConfig{
-        numRet = 5
+        numRet      = 5
+    ,   useSecure   = False
+    ,   certificate = ""
+    ,   privateKey  = ""
     }
 
 type DeviceURI = Text
