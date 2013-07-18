@@ -9,19 +9,10 @@ import Data.Text
 cPOST_URL :: Text
 cPOST_URL = "https://android.googleapis.com/gcm/send"
 
-cPOST_NOTIFICATION_URL :: Text
-cPOST_NOTIFICATION_URL = "https://android.googleapis.com/gcm/notification"
-
 -- Fields for JSON object in requests to GCM servers.
 
 cREGISTRATION_IDS :: Text
 cREGISTRATION_IDS = "registration_ids"
-
-cNOTIFICATION_KEY :: Text
-cNOTIFICATION_KEY = "notification_key"
-
-cNOTIFICATION_KEY_NAME :: Text
-cNOTIFICATION_KEY_NAME = "notification_key_name"
 
 cCOLLAPSE_KEY :: Text
 cCOLLAPSE_KEY = "collapse_key"

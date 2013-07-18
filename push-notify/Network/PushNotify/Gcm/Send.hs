@@ -30,9 +30,9 @@ import Network.HTTP.Conduit         (http, parseUrl, withManager, RequestBody (R
 
 
 retrySettingsGCM = RetrySettings {
-    backoff = True
-,   baseDelay = 100
-,   numRetries = limitedRetries 1
+    backoff     = True
+,   baseDelay   = 100
+,   numRetries  = limitedRetries 1
 }
 
 -- | 'sendGCM' sends the message through a GCM Server.
