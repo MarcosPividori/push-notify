@@ -27,6 +27,7 @@ import Network.HTTP.Types
 import Network.HTTP.Conduit         (http, parseUrl, withManager, RequestBody (RequestBodyLBS),
                                      requestBody, requestHeaders, method, Response (..), Manager,
                                      newManager, def, Request)
+import Control.Monad.Trans.Resource (runResourceT)
 
 
 retrySettingsGCM = RetrySettings {
@@ -36,8 +37,8 @@ retrySettingsGCM = RetrySettings {
 }
 
 -- | 'sendGCM' sends the message through a GCM Server.
-sendGCM :: GCMAppConfig -> GCMmessage -> IO GCMresult
-sendGCM cnfg msg = withManager $ \manager -> do
+sendGCM :: Manager -> GCMAppConfig -> GCMmessage -> IO GCMresult
+sendGCM manager cnfg msg = runResourceT $ do
     let
         value   = toJSON msg
         valueBS = encode value
@@ -55,9 +56,9 @@ sendGCM cnfg msg = withManager $ \manager -> do
 -- 'retry' try numRet attemps to send the messages.
 retry :: (MonadBaseControl IO m,MonadResource m)
         => Request m -> Manager -> Int -> GCMmessage -> m GCMresult
-retry req manager numRet msg = do
+retry req manager numret msg = do
         response <- retrying (
-                                retrySettingsGCM{numRetries = limitedRetries numRet}) ifRetry $ http req manager
+                                retrySettingsGCM{numRetries = limitedRetries numret}) ifRetry $ http req manager
         if (statusCode $ responseStatus response) >= 500
           then
             case Prelude.lookup (fromString $ unpack cRETRY_AFTER) (responseHeaders response) of
@@ -65,7 +66,7 @@ retry req manager numRet msg = do
                 Just t  ->  do
                                 let time = (read (B.unpack t)) :: Int -- I need to check this line
                                 liftIO $ threadDelay (time*1000000) -- from seconds to microseconds
-                                retry req manager (numRet-1) msg 
+                                retry req manager (numret-1) msg 
           else
             do
                 resValue <- responseBody response $$+- sinkParser json
