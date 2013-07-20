@@ -24,6 +24,7 @@ import Network.TLS.Extra            (fileReadCertificate,fileReadPrivateKey)
 import Network.HTTP.Conduit         (http, parseUrl, withManager, RequestBody (RequestBodyLBS),
                                      requestBody, requestHeaders, Response(..), method, Manager,
                                      Request(..))
+import Control.Monad.Trans.Resource (runResourceT)
 
 retrySettingsMPNS = RetrySettings {
     backoff     = True
@@ -32,9 +33,9 @@ retrySettingsMPNS = RetrySettings {
 }
 
 -- | 'sendMPNS' sends the message through a MPNS Server.
-sendMPNS :: MPNSAppConfig -> MPNSmessage -> IO MPNSresult
-sendMPNS cnfg msg = do
-                        r <- mapM (send cnfg msg) $ deviceURIs msg
+sendMPNS :: Manager -> MPNSAppConfig -> MPNSmessage -> IO MPNSresult
+sendMPNS manager cnfg msg = do
+                        r <- mapM (send manager cnfg msg) $ deviceURIs msg
                         return $ MPNSresult{
                             results  = map (\(x,Just y) -> (x,y)) $ filter (isJust . snd) r
                         ,   toResend = map fst                    $ filter (not . isJust . snd) r
@@ -43,8 +44,8 @@ sendMPNS cnfg msg = do
                         isJust (Just _)  = True
                         isJust (Nothing) = False
 
-send :: MPNSAppConfig -> MPNSmessage -> DeviceURI -> IO (DeviceURI , Maybe MPNSinfo)
-send cnfg msg deviceUri = withManager $ \manager -> do
+send :: Manager -> MPNSAppConfig -> MPNSmessage -> DeviceURI -> IO (DeviceURI , Maybe MPNSinfo)
+send manager cnfg msg deviceUri = runResourceT $ do
     let valueBS   = renderLBS def $ rest msg
     req' <- liftIO $ case useSecure cnfg of
                         False   -> parseUrl $ unpack deviceUri
@@ -82,8 +83,7 @@ send cnfg msg deviceUri = withManager $ \manager -> do
 retry :: (MonadBaseControl IO m,MonadResource m)
       => Request m -> Manager -> Int -> m (Maybe MPNSinfo)
 retry req manager numRet = do
-        response <- retrying (retrySettingsMPNS{numRetries = limitedRetries numRet})
-                             ifRetry $ http req manager
+        response <- retrying (retrySettingsMPNS{numRetries = limitedRetries numRet}) ifRetry $ http req manager
         responseBody response $$+- return ()
         if (statusCode $ responseStatus response) >= 500
           then return Nothing -- Persistent server internal error after retrying
