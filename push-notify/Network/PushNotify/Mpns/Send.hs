@@ -15,16 +15,16 @@ import Data.Conduit                 (($$+-))
 import Data.Text                    (Text, pack, unpack, empty)
 import Data.Text.Encoding           (decodeUtf8)
 import Text.XML
+import Control.Concurrent.Async
 import Control.Monad.IO.Class       (liftIO)
 import Control.Monad.Trans.Control  (MonadBaseControl)
-import Control.Monad.Trans.Resource (MonadResource)
+import Control.Monad.Trans.Resource (MonadResource,runResourceT)
 import Control.Retry
 import Network.HTTP.Types
 import Network.TLS.Extra            (fileReadCertificate,fileReadPrivateKey)
 import Network.HTTP.Conduit         (http, parseUrl, withManager, RequestBody (RequestBodyLBS),
                                      requestBody, requestHeaders, Response(..), method, Manager,
                                      Request(..))
-import Control.Monad.Trans.Resource (runResourceT)
 
 retrySettingsMPNS = RetrySettings {
     backoff     = True
@@ -35,16 +35,18 @@ retrySettingsMPNS = RetrySettings {
 -- | 'sendMPNS' sends the message through a MPNS Server.
 sendMPNS :: Manager -> MPNSAppConfig -> MPNSmessage -> IO MPNSresult
 sendMPNS manager cnfg msg = do
-                        r <- mapM (send manager cnfg msg) $ deviceURIs msg
+                        asyncs  <- mapM (async . send manager cnfg msg) $ deviceURIs msg
+                        results <- mapM waitCatch asyncs
+                        let l = zip (deviceURIs msg) results
                         return $ MPNSresult{
-                            results  = map (\(x,Just y) -> (x,y)) $ filter (isJust . snd) r
-                        ,   toResend = map fst                    $ filter (not . isJust . snd) r
+                            results  = map (\(x,Right y) -> (x,y)) $ filter (isRight . snd) l
+                        ,   toResend = map fst                     $ filter (not . isRight . snd) l
                         }
                     where
-                        isJust (Just _)  = True
-                        isJust (Nothing) = False
+                        isRight (Right _) = True
+                        isRight (Left  _) = False
 
-send :: Manager -> MPNSAppConfig -> MPNSmessage -> DeviceURI -> IO (DeviceURI , Maybe MPNSinfo)
+send :: Manager -> MPNSAppConfig -> MPNSmessage -> DeviceURI -> IO MPNSinfo
 send manager cnfg msg deviceUri = runResourceT $ do
     let valueBS   = renderLBS def $ rest msg
     req' <- liftIO $ case useSecure cnfg of
@@ -77,17 +79,17 @@ send manager cnfg msg deviceUri = runResourceT $ do
                                 Raw         -> []
               }
     info <- retry req manager (numRet cnfg)
-    return (deviceUri,info)
+    return info
 
 -- 'retry' try numRet attemps to send the messages.
 retry :: (MonadBaseControl IO m,MonadResource m)
-      => Request m -> Manager -> Int -> m (Maybe MPNSinfo)
-retry req manager numRet = do
-        response <- retrying (retrySettingsMPNS{numRetries = limitedRetries numRet}) ifRetry $ http req manager
+      => Request m -> Manager -> Int -> m MPNSinfo
+retry req manager numret = do
+        response <- retrying (retrySettingsMPNS{numRetries = limitedRetries numret}) ifRetry $ http req manager
         responseBody response $$+- return ()
-        if (statusCode $ responseStatus response) >= 500
-          then return Nothing -- Persistent server internal error after retrying
-          else return $ Just $ handleSuccessfulResponse $ responseHeaders response
+        if ifRetry response
+          then fail "Persistent server internal error after retrying"
+          else return $ handleSuccessfulResponse $ responseHeaders response
         where
             ifRetry x = (statusCode $ responseStatus x) >= 500
 

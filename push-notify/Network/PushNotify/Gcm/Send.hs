@@ -21,14 +21,12 @@ import qualified Data.ByteString.Char8 as B
 import Control.Concurrent
 import Control.Monad.IO.Class       (liftIO)
 import Control.Monad.Trans.Control  (MonadBaseControl)
-import Control.Monad.Trans.Resource (MonadResource)
+import Control.Monad.Trans.Resource (MonadResource,runResourceT)
 import Control.Retry
 import Network.HTTP.Types
 import Network.HTTP.Conduit         (http, parseUrl, withManager, RequestBody (RequestBodyLBS),
                                      requestBody, requestHeaders, method, Response (..), Manager,
                                      newManager, def, Request)
-import Control.Monad.Trans.Resource (runResourceT)
-
 
 retrySettingsGCM = RetrySettings {
     backoff     = True
