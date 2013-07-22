@@ -1,13 +1,13 @@
-API for communicating through APNS
+## API for communicating through APNS
 I developed an API for communicating through APNS with iOS mobile devices.
 For this, I designed a way of building the messages, sending them and handling the result. 
 One important thing that I had to take into account, was how to maintain the connection. For APNS, I needed to communicate through a streaming SSL connection, so I couldn't use conduit as I 've done with GCM. So, to face this problem, I developed an APNSManager.
 The API looks like this:
 
- startAPNS     :: APNSAppConfig -> IO APNSManager  
- closeAPNS     :: APNSManager   -> IO ()  
- sendAPNS      :: APNSManager   -> APNSmessage -> IO APNSresult  
- feedBackAPNS  :: APNSAppConfig -> IO APNSFeedBackresult  
+ **startAPNS**     :: APNSAppConfig -> IO APNSManager  
+ **closeAPNS**     :: APNSManager   -> IO ()  
+ **sendAPNS**      :: APNSManager   -> APNSmessage -> IO APNSresult  
+ **feedBackAPNS**  :: APNSAppConfig -> IO APNSFeedBackresult  
 
 The main idea is:
 
