@@ -15,6 +15,7 @@ import Data.Conduit                 (($$+-))
 import Data.Text                    (Text, pack, unpack, empty)
 import Data.Text.Encoding           (decodeUtf8)
 import Text.XML
+import qualified Control.Exception      as CE
 import Control.Concurrent.Async
 import Control.Monad.IO.Class       (liftIO)
 import Control.Monad.Trans.Control  (MonadBaseControl)
@@ -24,7 +25,7 @@ import Network.HTTP.Types
 import Network.TLS.Extra            (fileReadCertificate,fileReadPrivateKey)
 import Network.HTTP.Conduit         (http, parseUrl, withManager, RequestBody (RequestBodyLBS),
                                      requestBody, requestHeaders, Response(..), method, Manager,
-                                     Request(..))
+                                     Request(..), HttpException(..))
 
 retrySettingsMPNS = RetrySettings {
     backoff     = True
@@ -37,10 +38,13 @@ sendMPNS :: Manager -> MPNSAppConfig -> MPNSmessage -> IO MPNSresult
 sendMPNS manager cnfg msg = do
                         asyncs  <- mapM (async . send manager cnfg msg) $ deviceURIs msg
                         results <- mapM waitCatch asyncs
-                        let l = zip (deviceURIs msg) results
+                        let l   = zip (deviceURIs msg) results
+                            res = map (\(x,Right y) -> (x,y)) $ filter (isRight . snd) l
                         return $ MPNSresult{
-                            results  = map (\(x,Right y) -> (x,y)) $ filter (isRight . snd) l
-                        ,   toResend = map fst                     $ filter (not . isRight . snd) l
+                            sucessfullResults = res
+                        ,   errorUnRegistered = map fst $ filter ( ( == Just "Expired") . subscriptionStatus . snd) res
+                        ,   errorToResend     = 
+                        ,   errorRest         = map (\(x,Left e)  -> (x,e)) $ filter (not . isRight . snd) l
                         }
                     where
                         isRight (Right _) = True
@@ -78,7 +82,11 @@ send manager cnfg msg deviceUri = runResourceT $ do
                                 Toast       -> [(cWindowsPhoneTarget, cToast)]
                                 Raw         -> []
               }
-    info <- retry req manager (numRet cnfg)
+    info <- liftIO $ CE.catch (runResourceT $ retry req manager (numRet cnfg)) 
+                              (\(StatusCodeException rStatus rHeaders c) -> case statusCode rStatus of
+                                                                       404 -> return $ handleSuccessfulResponse rHeaders
+                                                                       412 -> return $ handleSuccessfulResponse rHeaders
+                                                                       _   -> CE.throw $ StatusCodeException rStatus rHeaders c )
     return info
 
 -- 'retry' try numRet attemps to send the messages.
