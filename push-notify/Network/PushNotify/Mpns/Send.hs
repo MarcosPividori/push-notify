@@ -42,9 +42,7 @@ sendMPNS manager cnfg msg = do
                             res = map (\(x,Right y) -> (x,y)) $ filter (isRight . snd) l
                         return $ MPNSresult{
                             sucessfullResults = res
-                        ,   errorUnRegistered = map fst $ filter ( ( == Just "Expired") . subscriptionStatus . snd) res
-                        ,   errorToResend     = 
-                        ,   errorRest         = map (\(x,Left e)  -> (x,e)) $ filter (not . isRight . snd) l
+                        ,   errorException    = map (\(x,Left e)  -> (x,e)) $ filter (not . isRight . snd) l
                         }
                     where
                         isRight (Right _) = True
@@ -96,7 +94,7 @@ retry req manager numret = do
         response <- retrying (retrySettingsMPNS{numRetries = limitedRetries numret}) ifRetry $ http req manager
         responseBody response $$+- return ()
         if ifRetry response
-          then fail "Persistent server internal error after retrying"
+          then CE.throw $ StatusCodeException (responseStatus response) (responseHeaders response) (responseCookieJar response)
           else return $ handleSuccessfulResponse $ responseHeaders response
         where
             ifRetry x = (statusCode $ responseStatus x) >= 500
