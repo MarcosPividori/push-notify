@@ -28,6 +28,8 @@ import Network.HTTP.Conduit         (http, parseUrl, withManager, RequestBody (R
                                      requestBody, requestHeaders, method, Response (..), Manager,
                                      newManager, def, Request)
 
+
+
 retrySettingsGCM = RetrySettings {
     backoff     = True
 ,   baseDelay   = 100
@@ -60,7 +62,10 @@ retry req manager numret msg = do
         if (statusCode $ responseStatus response) >= 500
           then
             case Prelude.lookup (fromString $ unpack cRETRY_AFTER) (responseHeaders response) of
-                Nothing ->  fail "Persistent server internal error after retrying"
+                Nothing -> return $ def { success = Just 0
+                                        , failure = Just $ length $ registration_ids msg
+                                        , errorToReSend = registration_ids msg
+                                        } -- Persistent server internal error after retrying
                 Just t  ->  do
                                 let time = (read (B.unpack t)) :: Int -- I need to check this line
                                 liftIO $ threadDelay (time*1000000) -- from seconds to microseconds
@@ -77,7 +82,7 @@ retry req manager numret msg = do
                             else False
 
 getValue :: FromJSON b => Text -> Map Text Value -> Maybe b
-getValue x xs = do
+getValue x xs = do  
                     dat <-  Data.Map.lookup x xs
                     parseMaybe parseJSON dat
 
@@ -88,9 +93,7 @@ handleSucessfulResponse resValue msg =
            Just a -> let list  = case (getValue cRESULTS a) :: Maybe [(Map Text Value)] of
                                    Just xs ->  xs
                                    Nothing ->  []
-                         mapMsg= case registration_ids msg of
-                                           Just xs -> zip xs list
-                                           Nothing -> []
+                         mapMsg= zip (registration_ids msg) list
                      in
                      return $ def {
                          multicast_id  = getValue cMULTICAST_ID a

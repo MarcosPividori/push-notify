@@ -28,7 +28,7 @@ type RegId = Text
 
 -- | 'GCMmessage' represents a message to be sent through GCM.
 data GCMmessage = GCMmessage
-    {   registration_ids        :: Maybe [RegId]
+    {   registration_ids        :: [RegId]
     ,   collapse_key            :: Maybe Text
     ,   data_object             :: Maybe Object
     ,   delay_while_idle        :: Bool
@@ -39,7 +39,7 @@ data GCMmessage = GCMmessage
 
 instance Default GCMmessage where
     def = GCMmessage {
-        registration_ids        = Nothing
+        registration_ids        = []
     ,   collapse_key            = Nothing
     ,   data_object             = Nothing
     ,   delay_while_idle        = False
