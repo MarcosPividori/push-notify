@@ -1,7 +1,9 @@
 -- Test Example for Push Notifications.
 -- This is a simple example of a Yesod server, where devices can register to receive
 -- messages and users can send messages through the web service.
--- Before running this app, its necessary to complete the "approot" and the "apiKey" with the proper values.
+-- Before running this app, its necessary to complete the "approot" and,
+-- the "apiKey" -> in case of using the GCM service.
+-- the certificate and privateKey -> in case of using the APNS service.
 
 {-# LANGUAGE OverloadedStrings, TypeFamilies, TemplateHaskell,
              QuasiQuotes, MultiParamTypeClasses, GeneralizedNewtypeDeriving, FlexibleContexts, GADTs #-}
@@ -115,8 +117,9 @@ postRegisterR = do
     pass   <- runInputPost $ ireq textField "password"
     msys   <- runInputPost $ iopt textField "system"
     iden   <- case msys of
-                Nothing       -> return $ GCM  regId
-                Just "WPhone" -> return $ MPNS regId
+                Nothing       -> return $ GCM  regId -- We take GCM as default.
+                Just "WPhone" -> return $ MPNS regId -- A WPhone device
+--              Just "iOS"    -> return $ APNS regId -- A iOS device.
                 Just _        -> invalidArgs []
     device <- runDB $ getBy $ UniqueUser usr
     $(logInfo) ("\nIntent for a new user!:\n-User: "<> usr <>"\n-Password: "<> pass <>"\n-Identifier: "<> (pack $ show iden) <>"\n")
@@ -169,7 +172,7 @@ postFromWebR = do
                                    let _ = (e :: CE.SomeException)
                                    fail "Problem communicating with Push Servers")
             return ()
-            handleResult message result
+            handleResult message result 5
     else do
             return ()
     his <- lookupSession "history"
@@ -186,11 +189,11 @@ postFromWebR = do
 |]
 
 -- Handle the result of the communication with the Push Servers.
-handleResult :: PushNotification -> PushResult -> Handler ()
-handleResult msg res = do
-                        handleNewRegIDs    $ newIds       res
-                        handleUnRegistered $ unRegistered res
-                        handleToResend msg $ toResend     res
+handleResult :: PushNotification -> PushResult -> Int -> Handler ()
+handleResult msg res n = do
+                        handleNewRegIDs      $ newIds       res
+                        handleUnRegistered   $ unRegistered res
+                        handleToResend msg n $ toResend     res
 
 -- Handle the regIds that have changed, I need to actualize the DB.
 handleNewRegIDs :: [(Device,Device)] -> Handler ()
@@ -210,17 +213,10 @@ handleUnRegistered unRegIDs = do
                         let removeUnRegUser regid = runDB $ deleteBy $ UniqueDevice regid
                         foldr (>>) (return ()) $ map removeUnRegUser $ unRegIDs
 
--- I decide to unregister all regId with error different to Unregistered or Unavailable.
--- Because these are non-recoverable error.
-handleRest :: [(RegId,Text)] -> Handler ()
-handleRest rest = do
-                    $(logInfo) ("\tHandling RestError: "<>pack (show rest)<>"\t")
-                    let removeUnRegUser (regid,_) = runDB $ deleteBy $ UniqueDevice (GCM regid)
-                    foldr (>>) (return ()) $ map removeUnRegUser $ rest
-
 -- Handle the regIds that I need to resend because of an internal server error. (Unavailable error)
-handleToResend :: PushNotification -> [Device] -> Handler ()
-handleToResend msg list = do
+handleToResend :: PushNotification -> Int -> [Device] -> Handler ()
+handleToResend msg 0 list = return ()
+handleToResend msg n list = do
                     $(logInfo) ("\tHandling ToReSend: "<>pack (show list)<>"\t")
                     if list /= []
                     then do
@@ -230,7 +226,7 @@ handleToResend msg list = do
                                     (\e -> do
                                               let _ = (e :: CE.SomeException)
                                               fail "Problem communicating with GCM Server")
-                        handleResult msg res
+                        handleResult msg res (n-1)
                     else do
                         return ()
 
@@ -239,10 +235,13 @@ main :: IO ()
 main = do
  runResourceT . Control.Monad.Logger.runNoLoggingT $ withSqlitePool "DevicesDateBase.db3" 10 $ \pool -> do
     runSqlPool (runMigration migrateAll) pool
-    man <- liftIO $ newManager def
     liftIO $ do
+                man     <- newManager def
+--              apnsMan <- startAPNS def{certificate = "" , privateKey = "" }
                 static@(Static settings) <- static "static"
                 warp 3000 $ Messages pool static def{
-                                                     gcmAppConfig  = Just $ GCMAppConfig "key=" 5 -- Here you must complete with the correct Api Key provided by Google.
+                                                     gcmAppConfig  = Just $ GCMAppConfig "key=" 5 -- Here you must complete with the 
+                                                                                                  -- correct Api Key provided by Google.
+--                                               ,   apnsAppConfig = Just apnsMan
                                                  ,   mpnsAppConfig = Just def
                                                  } man
