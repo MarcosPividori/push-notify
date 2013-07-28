@@ -95,15 +95,17 @@ instance Default AlertDictionary where
 
 -- | 'APNSresult' represents information about messages after a communication with APNS Servers.
 data APNSresult = APNSresult
-    {   toReSendTokens :: [DeviceToken]
+    {   successfulTokens :: [DeviceToken]
+    ,   toReSendTokens   :: [DeviceToken] -- ^ Failed tokens that I need to resend the message to,
+                                          -- ^ because there was a problem.
     } deriving Show
 
 instance Default APNSresult where
-    def = APNSresult []
+    def = APNSresult [] []
 
 -- | 'APNSFeedBackresult' represents information after connecting with the Feedback service.
 data APNSFeedBackresult = APNSFeedBackresult
-    {   unRegistered :: [(DeviceToken,UTCTime)]
+    {   unRegisteredTokens :: [(DeviceToken,UTCTime)]
     } deriving Show
 
 instance Default APNSFeedBackresult where

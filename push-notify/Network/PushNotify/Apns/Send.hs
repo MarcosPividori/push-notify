@@ -103,11 +103,12 @@ sendAPNS m msg = do
         
         v    <- race  (readChan errorChan) (takeMVar var1 >> (threadDelay $ mTimeoutLimit m))
 
-        case v of
-            Left s  -> if s >= startNum -- an error response, s identifies the last notification that was successfully sent.
-                        then return $ APNSresult $ drop (s+1-startNum) $ deviceTokens msg -- An error occurred.
-                        else return $ APNSresult $ deviceTokens msg -- An old error occurred, so nothing was sent.
-            Right _ -> return $ APNSresult [] -- Successful.
+        let (success,fail)    = case v of
+                Left s  -> if s >= startNum -- an error response, s identifies the last notification that was successfully sent.
+                        then splitAt (s+1-startNum) $ deviceTokens msg -- An error occurred.
+                        else ([],deviceTokens msg) -- An old error occurred, so nothing was sent.
+                Right _ -> (deviceTokens msg,[]) -- Successful.
+        return $ APNSresult success fail
 
 apnsWorker :: APNSAppConfig -> TChan ( MVar (Maybe (Chan Int,Int)) , APNSmessage) -> IO ()
 apnsWorker config requestChan = do
