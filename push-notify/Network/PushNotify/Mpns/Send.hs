@@ -50,7 +50,7 @@ sendMPNS manager cnfg msg = do
 
 send :: Manager -> MPNSAppConfig -> MPNSmessage -> DeviceURI -> IO MPNSinfo
 send manager cnfg msg deviceUri = runResourceT $ do
-    let valueBS   = renderLBS def $ rest msg
+    let valueBS   = renderLBS def $ restXML msg
     req' <- liftIO $ case useSecure cnfg of
                         False   -> parseUrl $ unpack deviceUri
                         True    -> do

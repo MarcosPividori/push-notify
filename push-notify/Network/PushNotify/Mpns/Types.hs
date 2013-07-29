@@ -45,7 +45,7 @@ data MPNSmessage = MPNSmessage{
         deviceURIs          :: [DeviceURI]
     ,   batching_interval   :: MPNSInterval
     ,   target              :: MPNSType
-    ,   rest                :: Document
+    ,   restXML             :: Document
     } deriving Show
 
 instance Default MPNSmessage where
@@ -53,7 +53,7 @@ instance Default MPNSmessage where
         deviceURIs          = []
     ,   batching_interval   = Immediate
     ,   target              = Raw
-    ,   rest                = parseText_ def ""
+    ,   restXML             = parseText_ def ""
     }
 
 
