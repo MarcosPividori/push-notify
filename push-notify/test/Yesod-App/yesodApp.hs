@@ -11,28 +11,27 @@
 import Yesod
 import Yesod.Static
 import Database.Persist.Sqlite
-
 import Database.Persist
+import Data.Aeson.Types
+import Data.Default
+import Data.HashMap.Strict          (fromList)
+import Data.Monoid                  ((<>))
 import Data.Text.Internal           (empty)
 import Data.Text                    (Text,pack,unpack,append)
 import qualified Data.Text          as T
-import Data.Default
-import Data.HashMap.Strict          (fromList)
+import qualified Data.Map           as M
+import qualified Control.Exception  as CE
 import Text.XML
 import Text.Hamlet.XML
-import qualified Data.Map           as M
 import Control.Monad.Trans.Resource (runResourceT)
 import Control.Monad.IO.Class       (liftIO)
 import Control.Monad.Logger
 import Network.PushNotify.Gcm.Types
-import Network.PushNotify.Gcm.Send
+import Network.PushNotify.Apns.Types
 import Network.PushNotify.Mpns.Types
-import Network.PushNotify.Mpns.Send
+import Network.PushNotify.General
 import Network.HTTP.Conduit
-import qualified Control.Exception  as CE
-import Data.Aeson.Types
-import Data.Monoid                  ((<>))
-import PushNotify
+import Extra
 
 -- Data Base:
 
@@ -164,7 +163,7 @@ postFromWebR = do
     then do 
             let message = def {
                          gcmNotif  = Just $ def {data_object = Just (fromList [(pack "Message" .= msg)]) }
-                     ,   mpnsNotif = Just $ def {target = Toast , rest = Document (Prologue [] Nothing []) (xmlMessage msg) []}
+                     ,   mpnsNotif = Just $ def {target = Toast , restXML = Document (Prologue [] Nothing []) (xmlMessage msg) []}
                      }
             result <- liftIO $ CE.catch -- I catch IO exceptions to avoid showing unsecure information.
                         (send man appConfig message regIdsList)
