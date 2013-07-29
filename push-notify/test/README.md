@@ -12,6 +12,14 @@ For APNS, Apple requires you to be an enrolled iOS Developer or something simila
 so, I couldn't add an iOS example. Nevertheless, I have added commented code lines,
 on how it would be to add support for APNS on this Yesod app.
 
+![Img1](http://github.com/MarcosPividori/GSoC-Communicating-with-mobile-devices/blob/master/push-notify/test/Img1.png)
+
+![Img2](http://github.com/MarcosPividori/GSoC-Communicating-with-mobile-devices/blob/master/push-notify/test/Img2.png)
+
+![Img3](http://github.com/MarcosPividori/GSoC-Communicating-with-mobile-devices/blob/master/push-notify/test/Img3.jpg)
+
+![Img4](http://github.com/MarcosPividori/GSoC-Communicating-with-mobile-devices/blob/master/push-notify/test/Img4.jpg)
+
 **To try the example:**
   
   + On an Android device:
