@@ -12,13 +12,6 @@ For APNS, Apple requires you to be an enrolled iOS Developer or something simila
 so, I couldn't add an iOS example. Nevertheless, I have added commented code lines,
 on how it would be to add support for APNS on this Yesod app.
 
-![Img1](http://github.com/MarcosPividori/GSoC-Communicating-with-mobile-devices/blob/master/push-notify/test/Img1.png)
-
-![Img2](http://github.com/MarcosPividori/GSoC-Communicating-with-mobile-devices/blob/master/push-notify/test/Img2.png)
-
-![Img3](http://github.com/MarcosPividori/GSoC-Communicating-with-mobile-devices/blob/master/push-notify/test/Img3.jpg)
-
-![Img4](http://github.com/MarcosPividori/GSoC-Communicating-with-mobile-devices/blob/master/push-notify/test/Img4.jpg)
 
 **To try the example:**
   
@@ -31,6 +24,17 @@ on how it would be to add support for APNS on this Yesod app.
   + If the registration succeded, when you go to: http://push-notify.yesodweb.com/ 
     you will see your username. And you can start sending notifications through
     the website.
+
+**Some ScreenShots:**
+
+<img src="http://github.com/MarcosPividori/GSoC-Communicating-with-mobile-devices/raw/master/push-notify/test/Img1.png" width="800px"/>
+
+<img src="http://github.com/MarcosPividori/GSoC-Communicating-with-mobile-devices/raw/master/push-notify/test/Img2.png" width="800px"/>
+
+<img src="http://github.com/MarcosPividori/GSoC-Communicating-with-mobile-devices/raw/master/push-notify/test/Img3.jpg" width="800px"/>
+
+<img src="http://github.com/MarcosPividori/GSoC-Communicating-with-mobile-devices/raw/master/push-notify/test/Img4.jpg" width="800px"/>
+
 
 **About the Yesod App:**
 
