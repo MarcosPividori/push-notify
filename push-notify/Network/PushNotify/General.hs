@@ -49,7 +49,7 @@ instance Default PushAppConfig where
 
 data PushResult = PushResult {
         successful   :: [Device]
-    ,   failed       :: [(Device,Text)]
+    ,   failed       :: [(Device,Either Text SomeException)]
     ,   toResend     :: [Device]
     ,   unRegistered :: [Device]
     ,   newIds       :: [(Device,Device)]
@@ -64,8 +64,9 @@ class IsPushResult a where
 instance IsPushResult GCMresult where
     toPushResult r = def {
         successful   = map (GCM . fst)               $ messagesIds r
-    ,   failed       = map (\(x,y) -> (GCM x, y))    $ errorRest r ++ (map (\x -> (x,"UnregisteredError"))  $ errorUnRegistered r)
-                                                                   ++ (map (\x -> (x,"InternalError"))      $ errorToReSend     r)        
+    ,   failed       = map (\(x,y) -> (GCM x, y))    $ map (\(x,y) -> (x,Left y))                   (errorRest r) 
+                                                    ++ map (\x     -> (x,Left "UnregisteredError")) (errorUnRegistered r)
+                                                    ++ map (\x     -> (x,Left "InternalError"))     (errorToReSend     r)        
     ,   toResend     = map GCM                       $ errorToReSend r
     ,   unRegistered = map GCM                       $ errorUnRegistered r ++ (map fst $ errorRest r) 
     -- I decide to unregister all regId with error different to Unregistered or Unavailable. (errorRest)
@@ -76,7 +77,7 @@ instance IsPushResult GCMresult where
 instance IsPushResult APNSresult where
     toPushResult r = def {
         successful   = map APNS $ successfulTokens r
-    ,   failed       = map (\x -> (APNS x , "ComunicatingError")) $ toReSendTokens   r
+    ,   failed       = map (\x -> (APNS x , Left "ComunicatingError")) $ toReSendTokens   r
     ,   toResend     = map (APNS) $ toReSendTokens   r
     }
 
@@ -89,7 +90,7 @@ instance IsPushResult APNSFeedBackresult where
 instance IsPushResult MPNSresult where
     toPushResult = \r -> def {
         successful   = map (MPNS . fst) . filter ((/=) (Just "Dropped") . notificationStatus . snd ) $ sucessfullResults r
-    ,   failed       = map (\(x,y) -> (MPNS x , pack $ show y)) $ errorException r
+    ,   failed       = map (\(x,y) -> (MPNS x , Right y)) $ errorException r
     ,   toResend     = map (MPNS . fst) . filter (error500 . snd) $ errorException r
     ,   unRegistered = map (MPNS . fst) . filter ((==) (Just "Expired") . subscriptionStatus . snd ) $ sucessfullResults r
     } where
