@@ -166,7 +166,7 @@ postFromWebR = do
                      ,   mpnsNotif = Just $ def {target = Toast , restXML = Document (Prologue [] Nothing []) (xmlMessage msg) []}
                      }
             result <- liftIO $ CE.catch -- I catch IO exceptions to avoid showing unsecure information.
-                        (send man appConfig message regIdsList)
+                        (send man Nothing appConfig message regIdsList)
                         (\e -> do
                                    let _ = (e :: CE.SomeException)
                                    fail "Problem communicating with Push Servers")
@@ -221,7 +221,7 @@ handleToResend msg n list = do
                     then do
                         Messages _ _ appConfig m <- getYesod
                         res <- liftIO $ CE.catch -- I catch IO exceptions to avoid showing unsecure information.
-                                    (send m appConfig msg list)
+                                    (send m Nothing appConfig msg list)
                                     (\e -> do
                                               let _ = (e :: CE.SomeException)
                                               fail "Problem communicating with GCM Server")
@@ -239,7 +239,7 @@ main = do
 --              apnsMan <- startAPNS def{certificate = "" , privateKey = "" }
                 static@(Static settings) <- static "static"
                 warp 3000 $ Messages pool static def{
-                                                     gcmAppConfig  = Just $ GCMAppConfig "key=" 5 -- Here you must complete with the 
+                                                     gcmAppConfig  = Just $ GCMAppConfig "key=AIzaSyAfwzoQtisUgGBOsWu5Qif86d4AJuWdlCE" 5 -- Here you must complete with the 
                                                                                                   -- correct Api Key provided by Google.
 --                                               ,   apnsAppConfig = Just apnsMan
                                                  ,   mpnsAppConfig = Just def
