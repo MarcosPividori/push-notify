@@ -39,7 +39,7 @@ instance Default PushNotification where
 
 data PushAppConfig = PushAppConfig{
         gcmAppConfig  :: Maybe GCMAppConfig
-    ,   apnsAppConfig :: Maybe APNSManager
+    ,   apnsAppConfig :: Maybe APNSAppConfig
     ,   mpnsAppConfig :: Maybe MPNSAppConfig
     }
 
@@ -112,30 +112,30 @@ isAPNS _        = False
 isMPNS (MPNS _) = True
 isMPNS _        = False
 
-send :: Manager -> PushAppConfig -> PushNotification -> [Device] -> IO PushResult
-send man config notif devices = do
+send :: (Maybe Manager) -> (Maybe APNSManager) -> PushAppConfig -> PushNotification -> [Device] -> IO PushResult
+send man apnsMan config notif devices = do
                 let
                     gcmDevices  = map forgetConst $ filter isGCM  devices
                     apnsDevices = map forgetConst $ filter isAPNS devices 
                     mpnsDevices = map forgetConst $ filter isMPNS devices
 
-                r1 <- case (gcmDevices , gcmAppConfig config , gcmNotif  notif) of
-                          (_:_,Just cnf,Just msg)     -> do
-                                                             res <- sendGCM man cnf msg{registration_ids = gcmDevices}
-                                                             return $ toPushResult res
-                          _                           -> return def
+                r1 <- case (gcmDevices , gcmAppConfig config , gcmNotif  notif , man) of
+                          (_:_,Just cnf,Just msg,Just m) -> do
+                                                               res <- sendGCM m cnf msg{registration_ids = gcmDevices}
+                                                               return $ toPushResult res
+                          _                              -> return def
 
-                r2 <- case (apnsDevices , apnsAppConfig config , apnsNotif notif) of
-                          (_:_,Just apnsman,Just msg) -> do
-                                                             res <- sendAPNS apnsman msg{deviceTokens = apnsDevices}
-                                                             return $ toPushResult res
-                          _                           -> return def
+                r2 <- case (apnsDevices , apnsNotif notif , apnsMan) of
+                          (_:_,Just msg,Just m) -> do
+                                                       res <- sendAPNS m msg{deviceTokens = apnsDevices}
+                                                       return $ toPushResult res
+                          _                     -> return def
 
-                r3 <- case (mpnsDevices , mpnsAppConfig config , mpnsNotif notif) of
-                          (_:_,Just cnf,Just msg)     -> do
-                                                             res <- sendMPNS man cnf msg{deviceURIs = mpnsDevices}
-                                                             return $ toPushResult res
-                          _                           -> return def
+                r3 <- case (mpnsDevices , mpnsAppConfig config , mpnsNotif notif , man) of
+                          (_:_,Just cnf,Just msg,Just m) -> do
+                                                               res <- sendMPNS m cnf msg{deviceURIs = mpnsDevices}
+                                                               return $ toPushResult res
+                          _                              -> return def
 
                 return $ combine (combine r1 r2) r3
                 where
