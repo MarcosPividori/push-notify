@@ -24,9 +24,9 @@ data PushServiceConfig = PushServiceConfig{
     }
 
 data PushManager = PushManager {
-        httpManager    :: Maybe Manager       -- Conduit handler for sending push notifications though POST requests.
-    ,   apnsManager    :: Maybe APNSManager   -- Apns handler for sending push notifications though APNS servers.
-  --,   ccsManager     :: Maybe CCSManager    -- Ccs handler for communicating with GCM through Cloud Connection Server.
+        httpManager    :: Maybe Manager       -- Conduit manager for sending push notifications though POST requests.
+    ,   apnsManager    :: Maybe APNSManager   -- Apns manager for sending push notifications though APNS servers.
+  --,   ccsManager     :: Maybe CCSManager    -- Ccs manager for communicating with GCM through Cloud Connection Server.
     ,   serviceConfig  :: PushServiceConfig   -- Main configuration.
     ,   workerID       :: ThreadId            -- Id of the running yesod app.
     }
