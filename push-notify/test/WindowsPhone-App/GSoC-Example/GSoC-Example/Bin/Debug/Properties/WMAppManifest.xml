@@ -17,21 +17,14 @@
           <SmallImageURI IsRelative="true" IsResource="false">lambdaIcono.png</SmallImageURI>
           <Count>0</Count>
           <BackgroundImageURI IsRelative="true" IsResource="false">lambdaIcono.png</BackgroundImageURI>
-          <Title>
-          </Title>
-          <BackContent>
-          </BackContent>
-          <BackBackgroundImageURI IsRelative="true" IsResource="false">
-          </BackBackgroundImageURI>
-          <BackTitle>
-          </BackTitle>
-          <LargeBackgroundImageURI IsRelative="true" IsResource="false">
-          </LargeBackgroundImageURI>
+          <Title></Title>
+          <BackContent></BackContent>
+          <BackBackgroundImageURI IsRelative="true" IsResource="false"></BackBackgroundImageURI>
+          <BackTitle></BackTitle>
+          <LargeBackgroundImageURI IsRelative="true" IsResource="false"></LargeBackgroundImageURI>
           <LargeBackContent />
-          <LargeBackBackgroundImageURI IsRelative="true" IsResource="false">
-          </LargeBackBackgroundImageURI>
-          <DeviceLockImageURI IsRelative="true" IsResource="false">
-          </DeviceLockImageURI>
+          <LargeBackBackgroundImageURI IsRelative="true" IsResource="false"></LargeBackBackgroundImageURI>
+          <DeviceLockImageURI IsRelative="true" IsResource="false"></DeviceLockImageURI>
           <HasLarge>True</HasLarge>
         </TemplateFlip>
       </PrimaryToken>
@@ -43,3 +36,4 @@
     </ScreenResolutions>
   </App>
 </Deployment>
+<!-- WPSDK Version 8.0.9900 -->

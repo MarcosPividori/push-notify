@@ -152,8 +152,7 @@
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
     <Content Include="Assets\questionmark.png" />
-    <Content Include="Background.png" />
-    <Content Include="ic_launcher-web.png" />
+    <Content Include="lambdaIcono.png" />
   </ItemGroup>
   <ItemGroup>
     <EmbeddedResource Include="Resources\AppResources.resx">

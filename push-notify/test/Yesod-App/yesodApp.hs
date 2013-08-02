@@ -17,7 +17,7 @@ import Data.Default
 import Data.HashMap.Strict          (fromList)
 import Data.Monoid                  ((<>))
 import Data.Text.Internal           (empty)
-import Data.Text                    (Text,pack,unpack,append)
+import Data.Text                    (Text,pack,unpack,append,isPrefixOf)
 import qualified Data.Text          as T
 import qualified Data.Map           as M
 import qualified Control.Exception  as CE
@@ -31,6 +31,7 @@ import Network.PushNotify.Apns.Types
 import Network.PushNotify.Mpns.Types
 import Network.PushNotify.General
 import Network.HTTP.Conduit
+import Network.HTTP.Types.Status
 import Extra
 
 -- Data Base:
@@ -190,9 +191,22 @@ postFromWebR = do
 -- Handle the result of the communication with the Push Servers.
 handleResult :: PushNotification -> PushResult -> Int -> Handler ()
 handleResult msg res n = do
+                        handleFailed         $ failed       res
                         handleNewRegIDs      $ newIds       res
                         handleUnRegistered   $ unRegistered res
                         handleToResend msg n $ toResend     res
+
+-- Handle the msg that failed, I decide to unregister devices when I get a 400 error trying to send them a notification.
+handleFailed :: [(Device,Either Text CE.SomeException)] -> Handler ()
+handleFailed list = let l = map fst $ filter (is400 . snd) list
+                    in if l /= []
+                         then handleUnRegistered l 
+                         else return ()
+                    where
+                        is400 (Left _)  = False
+                        is400 (Right e) = case (CE.fromException e) :: Maybe HttpException of
+                                              Just (StatusCodeException status _ _) -> (statusCode status) == 400
+                                              _                                     -> False
 
 -- Handle the regIds that have changed, I need to actualize the DB.
 handleNewRegIDs :: [(Device,Device)] -> Handler ()
@@ -226,8 +240,7 @@ handleToResend msg n list = do
                                               let _ = (e :: CE.SomeException)
                                               fail "Problem communicating with GCM Server")
                         handleResult msg res (n-1)
-                    else do
-                        return ()
+                    else return ()
 
 
 main :: IO ()
@@ -239,7 +252,7 @@ main = do
 --              apnsMan <- startAPNS def{certificate = "" , privateKey = "" }
                 static@(Static settings) <- static "static"
                 warp 3000 $ Messages pool static def{
-                                                     gcmAppConfig  = Just $ GCMAppConfig "key=AIzaSyAfwzoQtisUgGBOsWu5Qif86d4AJuWdlCE" 5 -- Here you must complete with the 
+                                                     gcmAppConfig  = Just $ GCMAppConfig "key=" 5 -- Here you must complete with the 
                                                                                                   -- correct Api Key provided by Google.
 --                                               ,   apnsAppConfig = Just apnsMan
                                                  ,   mpnsAppConfig = Just def

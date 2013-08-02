@@ -36,9 +36,9 @@ namespace GSoC_Example
             
             try
             {
-                user       = (string)userSettings["user"];
-                password   = (string)userSettings["pass"];
-                registered = (Boolean)userSettings["registered"];
+                user       = (string)  userSettings["user"];
+                password   = (string)  userSettings["pass"];
+                registered = (Boolean) userSettings["registered"];
             }
             catch (System.Collections.Generic.KeyNotFoundException)
             {
@@ -54,6 +54,7 @@ namespace GSoC_Example
             {
                 ;
             }
+
             // Try to find the push channel.
             pushChannel = HttpNotificationChannel.Find(channelName);
 
@@ -89,7 +90,6 @@ namespace GSoC_Example
                 // Register for this notification to receive the notifications while your application is running.
                 pushChannel.ShellToastNotificationReceived += new EventHandler<NotificationEventArgs>(PushChannel_ShellToastNotificationReceived);
 
-                
                 if (!registered)
                 {
                     uri = pushChannel.ChannelUri.ToString();
@@ -224,17 +224,17 @@ namespace GSoC_Example
         }
 
         Boolean SendUserInfo()
-        {                          
-                Uri url = new Uri("http://192.168.0.52:3000/register");
-                RequestState myRequestState = new RequestState();
-                HttpWebRequest request = (HttpWebRequest) WebRequest.Create(url);
-                myRequestState.request = request;
-                request.Method = "POST";
-                request.ContentType = "application/x-www-form-urlencoded;charset=UTF-8";
-                request.BeginGetRequestStream(new AsyncCallback(GetRequestStreamCallback), myRequestState);
-                
-                allDone.WaitOne();
-                return myRequestState.success;
+        {
+            Uri url = new Uri("http://push-notify.yesodweb.com/register");
+            RequestState myRequestState = new RequestState();
+            HttpWebRequest request = (HttpWebRequest) WebRequest.Create(url);
+            myRequestState.request = request;
+            request.Method = "POST";
+            request.ContentType = "application/x-www-form-urlencoded;charset=UTF-8";
+            request.BeginGetRequestStream(new AsyncCallback(GetRequestStreamCallback), myRequestState);
+            
+            allDone.WaitOne();
+            return myRequestState.success;
         }
 
         void GetRequestStreamCallback(IAsyncResult asynchronousResult)
@@ -310,7 +310,8 @@ namespace GSoC_Example
 
         private void ExitButton_Click(object sender, EventArgs e)
         {
-            ;
+            SaveConsole();
+            Application.Current.Terminate();
         }
         
     }
