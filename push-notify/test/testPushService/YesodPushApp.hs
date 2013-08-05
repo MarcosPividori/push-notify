@@ -24,7 +24,7 @@ instance Yesod YesodPushApp
 instance RenderMessage YesodPushApp FormMessage where
     renderMessage _ _ = defaultFormMessage
 
--- 'postRegister' allows a mobile device register. (POST messages to '/register')
+-- 'postRegister' allows a mobile device to register. (POST messages to '/register')
 postRegisterR :: Handler ()
 postRegisterR = do
     regId  <- runInputPost $ ireq textField "regId"
