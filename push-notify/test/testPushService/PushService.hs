@@ -14,7 +14,7 @@ import Control.Concurrent
 
 data PushServiceConfig = PushServiceConfig{
         pushConfig           :: PushAppConfig                -- Main configuration.
-    ,   newMessageCallback   :: Device -> Value -> IO ()     -- The callback function to be called when receiving a messages from devices.
+    ,   newMessageCallback   :: Device -> Value -> IO ()     -- The callback function to be called when receiving messages from devices.
     ,   newDeviceCallback    :: Device -> Value -> IO Bool   -- The callback function to be called when a new device try to register
                                                              -- on server, returns True in case of a successful registration.
     ,   unRegisteredCallback :: Device -> IO ()              -- The callback function to be called when a device unregisters.
@@ -53,4 +53,3 @@ closePushService = undefined
 
 sendPush :: [Device] -> PushNotification -> PushManager -> IO PushResult
 sendPush = undefined
-
