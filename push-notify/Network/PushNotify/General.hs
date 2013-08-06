@@ -6,21 +6,19 @@ module Network.PushNotify.General (
     , PushNotification(..)
     , PushAppConfig(..)
     , PushResult(..)
-    , send
+    , IsPushResult(..)
     ) where
 
 import Network.PushNotify.Gcm.Types
 import Network.PushNotify.Apns.Types
 import Network.PushNotify.Mpns.Types
-import Network.PushNotify.Gcm.Send
-import Network.PushNotify.Apns.Send
-import Network.PushNotify.Mpns.Send
 import Network.HTTP.Conduit
 import Network.HTTP.Types.Status
 import Control.Exception
 
 import Data.Text    (Text,pack)
 import Data.Default
+import Data.Monoid
 
 data Device =   GCM  RegId
             |   APNS DeviceToken
@@ -57,6 +55,10 @@ data PushResult = PushResult {
 
 instance Default PushResult where
     def = PushResult [] [] [] [] []
+
+instance Monoid PushResult where
+    mempty = def
+    mappend (PushResult a1 b1 c1 d1 e1) (PushResult a2 b2 c2 d2 e2) = PushResult (a1 ++ a2) (b1 ++ b2) (c1 ++ c2) (d1 ++ d2) (e1 ++ e2)
 
 class IsPushResult a where
     toPushResult :: a -> PushResult
@@ -98,46 +100,3 @@ instance IsPushResult MPNSresult where
         error500 e = case (fromException e) :: Maybe HttpException of
                          Just (StatusCodeException status _ _) -> (statusCode status) >= 500
                          _                                     -> False
-
-forgetConst :: Device -> Text
-forgetConst (GCM  x) = x
-forgetConst (APNS x) = x
-forgetConst (MPNS x) = x
-
-isGCM  (GCM  _) = True
-isGCM  _        = False
-
-isAPNS (APNS _) = True
-isAPNS _        = False
-
-isMPNS (MPNS _) = True
-isMPNS _        = False
-
-send :: (Maybe Manager) -> (Maybe APNSManager) -> PushAppConfig -> PushNotification -> [Device] -> IO PushResult
-send man apnsMan config notif devices = do
-                let
-                    gcmDevices  = map forgetConst $ filter isGCM  devices
-                    apnsDevices = map forgetConst $ filter isAPNS devices 
-                    mpnsDevices = map forgetConst $ filter isMPNS devices
-
-                r1 <- case (gcmDevices , gcmAppConfig config , gcmNotif  notif , man) of
-                          (_:_,Just cnf,Just msg,Just m) -> do
-                                                               res <- sendGCM m cnf msg{registration_ids = gcmDevices}
-                                                               return $ toPushResult res
-                          _                              -> return def
-
-                r2 <- case (apnsDevices , apnsNotif notif , apnsMan) of
-                          (_:_,Just msg,Just m) -> do
-                                                       res <- sendAPNS m msg{deviceTokens = apnsDevices}
-                                                       return $ toPushResult res
-                          _                     -> return def
-
-                r3 <- case (mpnsDevices , mpnsAppConfig config , mpnsNotif notif , man) of
-                          (_:_,Just cnf,Just msg,Just m) -> do
-                                                               res <- sendMPNS m cnf msg{deviceURIs = mpnsDevices}
-                                                               return $ toPushResult res
-                          _                              -> return def
-
-                return $ combine (combine r1 r2) r3
-                where
-                    combine (PushResult a1 b1 c1 d1 e1) (PushResult a2 b2 c2 d2 e2) = PushResult (a1 ++ a2) (b1 ++ b2) (c1 ++ c2) (d1 ++ d2) (e1 ++ e2)

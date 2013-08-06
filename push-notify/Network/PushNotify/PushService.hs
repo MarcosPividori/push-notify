@@ -1,5 +1,13 @@
 
-module Network.PushNotify.PushService where
+module PushService(
+    PushServiceConfig(..)
+  , PushManager(..)
+  , startPushService
+  , closePushService
+  , sendPush
+  , RegisterResult(..) -- from YesodPushApp
+  , PushAppSub(..)     -- from YesodPushApp
+  ) where
 
 import Network.PushNotify.General
 import YesodPushApp
@@ -19,7 +27,7 @@ import Network.PushNotify.Apns.Send
 import Network.PushNotify.Mpns.Send
 
 
-data PushServiceConfig = PushServiceConfig{
+data PushServiceConfig = PushServiceConfig {
         pushConfig           :: PushAppConfig                -- Main configuration.
     ,   newMessageCallback   :: Device -> Value -> IO ()     -- The callback function to be called when receiving messages from devices.
     ,   newDeviceCallback    :: Device -> Value -> IO RegisterResult -- The callback function to be called when a new device try to register on server.
@@ -49,7 +57,7 @@ startPushService pConfig = do
                                       Nothing  -> return Nothing
                     -- ccsMan  <- undefined
                        return ( PushManager httpMan apnsMan pConfig
-                              , PushAppSub (newMessageCallback pConfig) (newDeviceCallback pConfig) )
+                              , PushAppSub (newMessageCallback pConfig) (newDeviceCallback pConfig))
 
 closePushService :: PushManager -> IO ()
 closePushService man = do
@@ -59,6 +67,7 @@ closePushService man = do
                            case apnsManager man of
                                Just m -> closeAPNS m
                                _      -> return ()
+                     --    closeCCS
 
 
 forgetConst :: Device -> Text
@@ -79,9 +88,10 @@ sendPush :: PushManager -> PushNotification -> [Device] -> IO PushResult
 sendPush man notif devices = do
                 let
                     gcmDevices  = map forgetConst $ filter isGCM  devices
-                    apnsDevices = map forgetConst $ filter isAPNS devices 
+                    apnsDevices = map forgetConst $ filter isAPNS devices
                     mpnsDevices = map forgetConst $ filter isMPNS devices
-                    config      = pushConfig $ serviceConfig man
+                    pConfig     = serviceConfig man
+                    config      = pushConfig pConfig
 
                 r1 <- case (gcmDevices , gcmAppConfig config , gcmNotif  notif , httpManager man) of
                           (_:_,Just cnf,Just msg,Just m) -> do
@@ -100,12 +110,12 @@ sendPush man notif devices = do
                                                                res <- sendMPNS m cnf msg{deviceURIs = mpnsDevices}
                                                                return $ toPushResult res
                           _                              -> return def
-                
+
                 let res = r1 <> r2 <> r3
 
-                when (unRegistered res /= []) $ mapM_ (unRegisteredCallback (serviceConfig man)) (unRegistered res)
+                when (unRegistered res /= []) $ mapM_ (unRegisteredCallback pConfig) (unRegistered res)
 
-                when (newIds res /= [])       $ mapM_ (newIdCallback        (serviceConfig man)) (newIds res)
+                when (newIds res /= [])       $ mapM_ (newIdCallback        pConfig) (newIds res)
 
                 return res
 
