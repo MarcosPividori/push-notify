@@ -1,5 +1,5 @@
 
-module PushService(
+module Network.PushNotify.PushService(
     PushServiceConfig(..)
   , PushManager(..)
   , startPushService
