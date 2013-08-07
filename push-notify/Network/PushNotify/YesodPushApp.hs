@@ -1,48 +1,56 @@
 {-# LANGUAGE OverloadedStrings, TypeFamilies, TemplateHaskell, FlexibleInstances,
              QuasiQuotes, MultiParamTypeClasses, GeneralizedNewtypeDeriving, FlexibleContexts, GADTs #-}
 
-module YesodPushApp(
+module Network.PushNotify.YesodPushApp(
     RegisterResult(..)
   , PushAppSub(..)
   ) where
 
 import Yesod
-import YesodPushAppRoutes
+import Network.PushNotify.YesodPushAppRoutes
 import Network.PushNotify.General
 import Control.Concurrent
 import Data.Text
+import Data.Aeson
+import qualified Data.HashMap.Strict as HM
 
 instance (RenderMessage master FormMessage, Yesod master) => YesodSubDispatch PushAppSub (HandlerT master IO) where
     yesodSubDispatch = $(mkYesodSubDispatch resourcesPushAppSub)
 
--- 'postRegister' allows a mobile device to register. (POST messages to '/register')
+-- 'postRegister' allows a mobile device to register. (JSON POST messages to '/register')
 postSubRegisterR :: (RenderMessage master FormMessage, Yesod master) => HandlerT PushAppSub (HandlerT master IO) ()
 postSubRegisterR = do
-    regId  <- lift $ runInputPost $ ireq textField "regId"
-    msys   <- lift $ runInputPost $ iopt textField "system"
-    iden   <- case msys of
-                Nothing       -> return $ GCM  regId -- We take GCM as default.
-                Just "WPhone" -> return $ MPNS regId -- A WPhone device
-                Just "iOS"    -> return $ APNS regId -- A iOS device.
-                Just _        -> invalidArgs []
-    value  <- lift $ parseJsonBody_
-    PushAppSub _ callback <- getYesod
-    res <- liftIO $ callback iden value
-    case res of
-      SuccessfulReg -> sendResponse $ RepJson emptyContent -- successful registration.
-      ErrorReg t    -> permissionDenied t                  -- error in registration.
+    value  <- parseJsonBody_
+    case value of
+        Object v -> do
+                        iden <- lookForIdentifier v
+                        PushAppSub _ callback <- getYesod
+                        res <- liftIO $ callback iden value
+                        case res of
+                            SuccessfulReg -> sendResponse $ RepJson emptyContent -- successful registration.
+                            ErrorReg t    -> permissionDenied t                  -- error in registration.        
+        _        -> invalidArgs []
 
--- 'postMessages' allows a mobile device to send a message. (POST messages to '/messages')
+lookForIdentifier :: Object -> HandlerT PushAppSub (HandlerT master IO) Device
+lookForIdentifier v = do
+                    regId <- case (HM.lookup "regId" v) of
+                                 Just (String s) -> return s
+                                 _               -> invalidArgs []
+                    case (HM.lookup "system" v) of
+                                 Nothing                -> return $ GCM  regId -- We take GCM as default.
+                                 Just (String "WPhone") -> return $ MPNS regId -- A WPhone device.
+                                 Just (String "iOS")    -> return $ APNS regId -- A iOS device.
+                                 _                      -> invalidArgs []
+
+-- 'postMessages' allows a mobile device to send a message. (JSON POST messages to '/messages')
 postSubMessagesR :: (RenderMessage master FormMessage, Yesod master) => HandlerT PushAppSub (HandlerT master IO) ()
 postSubMessagesR = do
-    regId  <- lift $ runInputPost $ ireq textField "regId"
-    msys   <- lift $ runInputPost $ iopt textField "system"
-    iden   <- case msys of
-                Nothing       -> return $ GCM  regId -- We take GCM as default.
-                Just "WPhone" -> return $ MPNS regId -- A WPhone device.
-                Just "iOS"    -> return $ APNS regId -- A iOS device.
-                Just _        -> invalidArgs []
-    value  <- lift $ parseJsonBody_
-    PushAppSub callback _ <- getYesod
-    liftIO $ forkIO $ callback iden value
-    sendResponse $ RepJson emptyContent   
+    value  <- parseJsonBody_
+    case value of
+        Object v -> do
+                        iden <- lookForIdentifier v
+                        PushAppSub callback _ <- getYesod
+                        liftIO $ forkIO $ callback iden value
+                        sendResponse $ RepJson emptyContent
+        _        -> invalidArgs []
+
