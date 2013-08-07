@@ -1,7 +1,7 @@
 {-# LANGUAGE OverloadedStrings, TypeFamilies, TemplateHaskell, FlexibleInstances, RankNTypes,
              QuasiQuotes, MultiParamTypeClasses, GeneralizedNewtypeDeriving, FlexibleContexts, GADTs #-}
 
-module YesodPushAppRoutes where
+module Network.PushNotify.YesodPushAppRoutes where
 
 import Yesod
 import Network.PushNotify.General
