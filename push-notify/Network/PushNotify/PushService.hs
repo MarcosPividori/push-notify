@@ -1,4 +1,4 @@
-
+    
 module Network.PushNotify.PushService(
     PushServiceConfig(..)
   , PushManager(..)
@@ -10,7 +10,7 @@ module Network.PushNotify.PushService(
   ) where
 
 import Network.PushNotify.General
-import YesodPushApp
+import Network.PushNotify.YesodPushApp
 
 import Yesod
 import Data.Aeson
