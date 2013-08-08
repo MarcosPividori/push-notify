@@ -205,20 +205,16 @@ main = do
       ref <- newIORef Nothing
       (man,pSub) <- startPushService $ PushServiceConfig{
             pushConfig           = def{
-                                   gcmAppConfig  = Just $ GCMAppConfig "key=" 5 -- Here you must complete with the correct Api Key.
---                             ,   apnsAppConfig = Just apnsMan
-                               ,   mpnsAppConfig = Just def
-                               }
-        ,   newMessageCallback   = handleNewMessage ref
+                                       gcmAppConfig  = Just $ GCMAppConfig "key=" 5 -- Here you must complete with the correct Api Key.
+--                                 ,   apnsAppConfig = Just apnsMan
+                                   ,   mpnsAppConfig = Just def
+                                   }
+        ,   newMessageCallback   = handleNewMessage pool ref
         ,   newDeviceCallback    = handleNewDevice pool
-        ,   unRegisteredCallback = \d -> runDBAct pool $ deleteBy $ UniqueDevice d
-        ,   newIdCallback        = \(old,new) -> do
-                                                     dev  <- runDBAct pool $ getBy $ UniqueDevice old
-                                                     case dev of
-                                                         Just x  ->  runDBAct pool $ update (entityKey (x)) [DevicesIdentifier =. new ]
-                                                         Nothing ->  return ()
+        ,   unRegisteredCallback = handleUnregistered pool
+        ,   newIdCallback        = handleNewId pool
         }
-      writeIORef ref $ Just (pool,man)
+      writeIORef ref $ Just man
       static@(Static settings) <- static "static"
       warp 3000 $ Messages pool static man pSub
       
@@ -229,11 +225,16 @@ main = do
                          v .: "password"
        pars _          = mzero
 
+       parsMsg :: Value -> Parser Text
+       parsMsg (Object v) = v .: "message"
+       parsMsg _          = mzero
+       
        runDBAct p a = runResourceT . runNoLoggingT $ runSqlPool a p
               
        handleNewDevice pool d v = do
           res  <- return $ parseMaybe pars v
           case res of
+            Nothing         -> return $ ErrorReg "No User or Password"
             Just (usr,pass) -> do
               putStr ("\nIntent for a new user!:\n-User: " ++ show usr ++ "\n-Password: "
                       ++ show pass ++ "\n-Identifier: " ++ show d ++ "\n")
@@ -253,29 +254,33 @@ main = do
                                          runDBAct pool $ update (entityKey (a)) [DevicesIdentifier =. d]
                                          return SuccessfulReg
                              False -> return $ ErrorReg "Invalid Username or Password"
-            _ -> return $ ErrorReg "No User or Password"
 
-       parsmsg :: Value -> Parser Text
-       parsmsg (Object v) = v .: "message"
-       parsmsg _          = mzero
-
-       handleNewMessage ref d v = do
-          Just (pool,man) <- readIORef ref
+       handleNewMessage pool ref d v = do
+          Just man <- readIORef ref
           res  <- return $ parseMaybe pars v
           case res of
+            Nothing         -> return ()
             Just (usr,pass) -> do
               device <- runDBAct pool $ getBy $ UniqueUser usr
               case device of
-                Just a	-> case devicesPassword (entityVal (a)) == pass of
-                             True  -> do
-                                        m  <- return $ parseMaybe parsmsg v
-                                        case m of
-                                          Just msg -> do
-                                                        let message = def {gcmNotif  = Just $ def {data_object = Just (HM.fromList [(pack "Message" .= msg)]) }}
-                                                        putStr ("\nNew message from device!:\n-User: " ++ show usr ++ "\n-Msg: " ++ show msg ++ "\n")
-                                                        sendPush man message [d]
-                                                        return ()
-                                          Nothing  -> return ()
-                             False -> return ()
                 Nothing -> return ()
-            _ -> return ()
+                Just a	-> case devicesPassword (entityVal (a)) == pass of
+                             False -> return ()
+                             True  -> do
+                                        m  <- return $ parseMaybe parsMsg v
+                                        case m of
+                                          Nothing  -> return ()
+                                          Just msg -> do
+                                                          let message = def {gcmNotif  = Just $ def {
+                                                                        data_object = Just (HM.fromList [(pack "Message" .= msg)]) }}
+                                                          sendPush man message [d]
+                                                          putStr ("\nNew message from device!:\n-User: " ++ show usr
+                                                                  ++ "\n-Msg: " ++ show msg ++ "\n")
+       
+       handleNewId pool (old,new) = do
+                                        dev  <- runDBAct pool $ getBy $ UniqueDevice old
+                                        case dev of
+                                            Just x  ->  runDBAct pool $ update (entityKey (x)) [DevicesIdentifier =. new ]
+                                            Nothing ->  return ()
+
+       handleUnregistered pool d = runDBAct pool $ deleteBy $ UniqueDevice d
