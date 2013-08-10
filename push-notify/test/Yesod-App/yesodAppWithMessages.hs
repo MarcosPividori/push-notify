@@ -10,27 +10,27 @@
 
 import Yesod
 import Yesod.Static
-import Database.Persist.Sqlite
 import Database.Persist
+import Database.Persist.Sqlite
 import Data.Aeson.Types
-import Data.Functor
+import Data.Conduit.Pool
 import Data.Default
+import Data.Functor
 import Data.IORef
 import Data.Monoid                    ((<>))
 import Data.Text.Internal             (empty)
 import Data.Text                      (Text,pack,unpack,append,isPrefixOf)
-import Data.Conduit.Pool
+import qualified Control.Exception    as CE
+import qualified Data.HashMap.Strict  as HM
 import qualified Data.Text            as T
 import qualified Data.Map             as M
-import qualified Data.HashMap.Strict  as HM
-import qualified Control.Exception    as CE
 import Text.XML
 import Text.Hamlet.XML
 import Control.Applicative
 import Control.Monad                  (mzero)
-import Control.Monad.Trans.Resource   (runResourceT)
 import Control.Monad.IO.Class         (liftIO)
 import Control.Monad.Logger
+import Control.Monad.Trans.Resource   (runResourceT)
 import Network.HTTP.Conduit
 import Network.HTTP.Types.Status
 import Network.PushNotify.Gcm.Types
@@ -192,8 +192,8 @@ handleToResend msg n list = do
                         res <- liftIO $ CE.catch -- I catch IO exceptions to avoid showing unsecure information.
                                     (sendPush m msg list)
                                     (\e -> do
-                                              let _ = (e :: CE.SomeException)
-                                              fail "Problem communicating with GCM Server")
+                                             let _ = (e :: CE.SomeException)
+                                             fail "Problem communicating with GCM Server")
                         handleResult msg res (n-1)
                     else return ()
 
@@ -244,15 +244,15 @@ main = do
                              dev <- runDBAct pool $ getBy $ UniqueDevice d
                              case dev of
                                Just x  -> do 
-                                             runDBAct pool $ update (entityKey (x)) [DevicesUser =. usr , DevicesPassword =. pass]
-                                             return SuccessfulReg
+                                            runDBAct pool $ update (entityKey (x)) [DevicesUser =. usr , DevicesPassword =. pass]
+                                            return SuccessfulReg
                                Nothing -> do
-                                             runDBAct pool $ insert $ Devices usr pass d
-                                             return SuccessfulReg
+                                            runDBAct pool $ insert $ Devices usr pass d
+                                            return SuccessfulReg
                 Just a	-> case devicesPassword (entityVal (a)) == pass of
                              True  -> do
-                                         runDBAct pool $ update (entityKey (a)) [DevicesIdentifier =. d]
-                                         return SuccessfulReg
+                                        runDBAct pool $ update (entityKey (a)) [DevicesIdentifier =. d]
+                                        return SuccessfulReg
                              False -> return $ ErrorReg "Invalid Username or Password"
 
        handleNewMessage pool ref d v = do
@@ -271,16 +271,16 @@ main = do
                                         case m of
                                           Nothing  -> return ()
                                           Just msg -> do
-                                                          let message = def {gcmNotif  = Just $ def {
-                                                                        data_object = Just (HM.fromList [(pack "Message" .= msg)]) }}
-                                                          sendPush man message [d]
-                                                          putStr ("\nNew message from device!:\n-User: " ++ show usr
-                                                                  ++ "\n-Msg: " ++ show msg ++ "\n")
+                                                        let message = def {gcmNotif  = Just $ def {
+                                                                      data_object = Just (HM.fromList [(pack "Message" .= msg)]) }}
+                                                        sendPush man message [d]
+                                                        putStr ("\nNew message from device!:\n-User: " ++ show usr
+                                                                ++ "\n-Msg: " ++ show msg ++ "\n")
        
        handleNewId pool (old,new) = do
-                                        dev  <- runDBAct pool $ getBy $ UniqueDevice old
-                                        case dev of
-                                            Just x  ->  runDBAct pool $ update (entityKey (x)) [DevicesIdentifier =. new ]
-                                            Nothing ->  return ()
+                                      dev  <- runDBAct pool $ getBy $ UniqueDevice old
+                                      case dev of
+                                          Just x  ->  runDBAct pool $ update (entityKey (x)) [DevicesIdentifier =. new ]
+                                          Nothing ->  return ()
 
        handleUnregistered pool d = runDBAct pool $ deleteBy $ UniqueDevice d
