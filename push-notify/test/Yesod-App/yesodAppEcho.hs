@@ -9,15 +9,15 @@ import Yesod
 import Database.Persist.Sqlite
 import Database.Persist
 import Data.Aeson.Types
-import Data.Functor
+import Data.Conduit.Pool
 import Data.Default
+import Data.Functor
 import Data.IORef
 import Data.Text                      (Text,pack)
-import Data.Conduit.Pool
 import qualified Data.Map             as M
 import qualified Data.HashMap.Strict  as HM
-import Text.XML
 import Text.Hamlet.XML
+import Text.XML
 import Control.Applicative
 import Control.Monad                  (mzero)
 import Control.Monad.Trans.Resource   (runResourceT)
@@ -42,9 +42,9 @@ Devices
 -- Yesod App:
 
 data Echo = Echo {
-                     connectionPool :: ConnectionPool -- Connection to the Database.
+                     connectionPool :: ConnectionPool
                   ,  manager        :: PushManager
-                  ,  pushAppSub     :: PushAppSub
+                  ,  pushAppSub     :: PushAppSub     -- Yesod Subsite.
                   }
 
 mkYesod "Echo" [parseRoutes|
@@ -118,10 +118,10 @@ main = do
                                          return ()
 
        handleNewId pool (old,new) = do
-                                        dev  <- runDBAct pool $ getBy $ UniqueDevice old
-                                        case dev of
-                                            Just x  ->  runDBAct pool $ update (entityKey (x)) [DevicesIdentifier =. new ]
-                                            Nothing ->  return ()
+                                      dev  <- runDBAct pool $ getBy $ UniqueDevice old
+                                      case dev of
+                                        Just x  ->  runDBAct pool $ update (entityKey (x)) [DevicesIdentifier =. new ]
+                                        Nothing ->  return ()
 
        handleUnregistered pool d = runDBAct pool $ deleteBy $ UniqueDevice d
        
