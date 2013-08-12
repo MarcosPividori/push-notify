@@ -1,14 +1,15 @@
 {-# LANGUAGE OverloadedStrings, TypeFamilies, TemplateHaskell, FlexibleInstances,
-             QuasiQuotes, MultiParamTypeClasses, GeneralizedNewtypeDeriving, FlexibleContexts, GADTs #-}
+             QuasiQuotes, MultiParamTypeClasses, FlexibleContexts, GADTs #-}
 
 module Network.PushNotify.YesodPushApp(
     RegisterResult(..)
   , PushAppSub(..)
   ) where
 
-import Yesod
 import Network.PushNotify.YesodPushAppRoutes
 import Network.PushNotify.General
+
+import Yesod
 import Control.Concurrent
 import Data.Text
 import Data.Aeson
