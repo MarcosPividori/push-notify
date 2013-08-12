@@ -1,4 +1,4 @@
-    
+
 module Network.PushNotify.PushService(
     PushServiceConfig(..)
   , PushManager(..)
@@ -83,7 +83,7 @@ isAPNS _        = False
 
 isMPNS (MPNS _) = True
 isMPNS _        = False
-
+ 
 sendPush :: PushManager -> PushNotification -> [Device] -> IO PushResult
 sendPush man notif devices = do
                 let
