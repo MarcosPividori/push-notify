@@ -15,7 +15,7 @@ import Data.Conduit                 (($$+-))
 import Data.Text                    (Text, pack, unpack, empty)
 import Data.Text.Encoding           (decodeUtf8)
 import Text.XML
-import qualified Control.Exception      as CE
+import qualified Control.Exception  as CE
 import Control.Concurrent.Async
 import Control.Monad.IO.Class       (liftIO)
 import Control.Monad.Trans.Control  (MonadBaseControl)
@@ -54,31 +54,31 @@ send manager cnfg msg deviceUri = runResourceT $ do
     req' <- liftIO $ case useSecure cnfg of
                         False   -> parseUrl $ unpack deviceUri
                         True    -> do
-                                    cert    <- fileReadCertificate $ certificate cnfg
-                                    key     <- fileReadPrivateKey  $ privateKey  cnfg
-                                    r <- (parseUrl $ unpack deviceUri)
-                                    return r{ 
-                                            clientCertificates = [(cert, Just key)]
-                                        ,   secure             = True }
+                                     cert <- fileReadCertificate $ certificate cnfg
+                                     key  <- fileReadPrivateKey  $ privateKey  cnfg
+                                     r    <- (parseUrl $ unpack deviceUri)
+                                     return r{ 
+                                             clientCertificates = [(cert, Just key)]
+                                         ,   secure             = True }
     let 
         interval = case target msg of
-                        Tile        -> 1
-                        Toast       -> 2
-                        Raw         -> 3
+                        Tile      -> 1
+                        Toast     -> 2
+                        Raw       -> 3
                  + case batching_interval msg of
-                        Immediate   -> 0
-                        Sec450      -> 10
-                        Sec900      -> 20
+                        Immediate -> 0
+                        Sec450    -> 10
+                        Sec900    -> 20
         req = req' {
                 method = "POST"
               , requestBody = RequestBodyLBS valueBS
               , requestHeaders = [
-                            ("Content-Type", "text/xml")
-                        ,   (cNotificationClass, fromString $ show interval)
+                          ("Content-Type", "text/xml")
+                        , (cNotificationClass, fromString $ show interval)
                         ] ++ case target msg of
-                                Tile        -> [(cWindowsPhoneTarget, cToken)]
-                                Toast       -> [(cWindowsPhoneTarget, cToast)]
-                                Raw         -> []
+                                Tile  -> [(cWindowsPhoneTarget, cToken)]
+                                Toast -> [(cWindowsPhoneTarget, cToast)]
+                                Raw   -> []
               }
     info <- liftIO $ CE.catch (runResourceT $ retry req manager (numRet cnfg)) 
                               (\(StatusCodeException rStatus rHeaders c) -> case statusCode rStatus of
@@ -106,4 +106,3 @@ handleSuccessfulResponse headers = MPNSinfo {
     ,   subscriptionStatus = decodeUtf8 <$> lookup cSubscriptionStatus     headers
     ,   connectionStatus   = decodeUtf8 <$> lookup cDeviceConnectionStatus headers
     }
-

@@ -29,4 +29,3 @@ cSubscriptionStatus = "X-SubscriptionStatus"
 
 cDeviceConnectionStatus :: HeaderName
 cDeviceConnectionStatus = "X-DeviceConnectionStatus"
-
