@@ -47,8 +47,8 @@ sendGCM manager cnfg msg = runResourceT $ do
                 method = "POST"
               , requestBody = RequestBodyLBS valueBS
               , requestHeaders = [ 
-                            ("Content-Type", "application/json")
-                        ,   ("Authorization", fromString $ unpack $ apiKey cnfg) -- API Key. (provided by Google)
+                          ("Content-Type", "application/json")
+                        , ("Authorization", fromString $ unpack $ apiKey cnfg) -- API Key. (provided by Google)
                         ]
               }
     retry req manager (numRet cnfg) msg

@@ -95,4 +95,3 @@ instance ToJSON GCMmessage where
                                         ifNotDef cRESTRICTED_PACKAGE_NAME restricted_package_name msg
                                         ifNotDef cDELAY_WHILE_IDLE delay_while_idle msg
                                         ifNotDef cDRY_RUN dry_run msg
-

@@ -32,7 +32,6 @@ cRESTRICTED_PACKAGE_NAME = "restricted_package_name"
 cDRY_RUN :: Text
 cDRY_RUN = "dry_run"
 
-
 -- Fields for a JSON response to a sucessful request.
 
 cMULTICAST_ID :: Text
@@ -69,4 +68,3 @@ cUNAVAILABLE = "Unavailable"
 
 cRETRY_AFTER :: Text
 cRETRY_AFTER = "Retry-After"
-
