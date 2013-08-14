@@ -15,27 +15,26 @@ import Types
 import Network.PushNotify.Gcm.Types
 
 import Data.XML.Types
-import Control.Monad
 import Control.Concurrent
 import Control.Concurrent.Async
 import Control.Concurrent.STM.TChan
+import Control.Monad
 import Control.Monad.STM
+import Data.Aeson
+import Data.Aeson.Parser
+import Data.Attoparsec.ByteString
 import Data.Default
 import Data.IORef
-import Data.Monoid                    ((<>))
-import Data.Text
 import Data.Int
-import qualified Control.Exception      as CE
-import qualified Data.HashMap.Strict    as HM
+import Data.Text
+import Data.Text.Encoding
+import Data.Monoid                    ((<>))
+import qualified Control.Exception    as CE
+import qualified Data.HashMap.Strict  as HM
 import Network
 import Network.Xmpp
 import Network.BSD
 import Network.Socket
-
---import Data.Attoparsec.ByteString
-import Data.Aeson.Parser
---import qualified Data.ByteString.Lazy.Char8 as BS
-import Data.Aeson
 
 -- 'connectCCS' starts a secure connection with CCS servers.
 connectCCS :: GCMAppConfig -> IO Session
@@ -45,9 +44,9 @@ connectCCS config = do
     soc   <- socket AF_INET Stream pro
 
     result <- session
-                  "gcm.googleapis.com"
-                  def{sessionStreamConfiguration = def{ socketDetails = Just (soc , SockAddrInet (fromIntegral 5235) (hostAddress he) ) } }
-                  (Just (( [plain (senderID config <> "@gcm.googleapis.com") Nothing (apiKey config) ]) , Nothing))
+                  (unpack cCCS_URL)
+                  def{sessionStreamConfiguration = def{ socketDetails = Just (soc , SockAddrInet (fromIntegral cCCS_PORT) (hostAddress he) ) } }
+                  (Just (( [plain (senderID config <> "@" <> cCCS_URL) Nothing (apiKey config) ]) , Nothing))
     case result of
         Right s -> return s
         Left e  -> error $ "XmppFailure: " ++ (show e)
@@ -61,6 +60,7 @@ startCCS config = do
         tID     <- forkIO $ CE.catch (ccsWorker config c) (\e -> let _ = (e :: CE.SomeException) 
                                                                   in atomicModifyIORef ref (\_ -> (Nothing,())))
         return $ CCSManager ref c tID 0
+
 
 ccsWorker :: GCMAppConfig -> TChan (MVar Text , GCMmessage) -> IO ()
 ccsWorker config requestChan = do
@@ -127,12 +127,19 @@ ccsWorker config requestChan = do
             receiver cont lock hmap sess = do
                          msg <- getMessage sess
 
-                         --  si es ACK/NACK -> busco en el hashmap la MVar y le respondo con la respuesta.
                          let [Element _ _ ([NodeContent (ContentText p)])] = messagePayload msg
-                             value = case maybeResult $ parse json $ show p of
-                                         Nothing -> empty
-                                         Just t  -> t
-                         cMessageType
+                             value = case maybeResult $ parse json $ encodeUtf8 p of
+                                         Nothing -> object []
+                                         Just v  -> v
+
+                         --  Here I analize the value:
+                         --  if it is a ACK/NACK message    -> I look for the MVar of this message in the hashmap 
+                         --                                    and I put the response in the MVar.
+                         --  if it is a message from device -> I send the Ack response to CCS server
+                         --                                    and start the callback function.
+                         
+                         -- This need to be completed!
+
                          c <- takeMVar cont
                          if c == 0
                           then putMVar lock () -- unblock the sender thread
@@ -143,20 +150,20 @@ ccsWorker config requestChan = do
                          
                          hashMap <- takeMVar hmap
                          case HM.lookup id hashMap of
-                           Just m  -> putMVar m "Resultado"
+                           Just m  -> putMVar m "Result"
                            Nothing -> return ()
                          let newMap = HM.delete id hashMap
                          putMVar hmap newMap
 
-                         --  si es MSG      -> Respondo Ack al servidor y disparo la callback function.
-
                          receiver cont lock hmap sess
+
 
 -- | 'closeCCS' stops the CCS service.
 closeCCS :: CCSManager -> IO ()
 closeCCS m = do
                 atomicModifyIORef (mState m) (\_ -> (Nothing,()))
                 killThread $ mWorkerID m
+
 
 -- | 'sendCCS' sends the message through a CCS Server.
 sendCCS :: CCSManager -> GCMmessage -> IO Text
