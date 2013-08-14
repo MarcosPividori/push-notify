@@ -20,3 +20,15 @@ cTo = "to"
 
 cMessageType :: Text
 cMessageType = "message_type"
+
+cAck :: Text
+cAck = "ack"
+
+cFrom :: Text
+cFrom = "from"
+
+cData :: Text
+cData = "data"
+
+cError :: Text
+cError = "error"
