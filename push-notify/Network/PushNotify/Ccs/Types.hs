@@ -13,7 +13,7 @@ import Network.PushNotify.Gcm.Types
 import Constants
 
 import Control.Concurrent
-import Control.Concurrent.STM.TChan
+import Control.Concurrent.Chan
 import Data.IORef
 import Data.Int
 import Data.Default
@@ -23,15 +23,15 @@ import qualified Data.HashMap.Strict    as HM
 
 data CCSManager = CCSManager
     {   mState        :: IORef (Maybe ())
-    ,   mCcsChannel   :: TChan ( MVar Text , GCMmessage)
+    ,   mCcsChannel   :: Chan ( MVar GCMresult , GCMmessage)
     ,   mWorkerID     :: ThreadId
     ,   mTimeoutLimit :: Int
     }
 
-fromGCMtoCCS :: RegId -> Int32 -> GCMmessage -> Value
+fromGCMtoCCS :: RegId -> Text -> GCMmessage -> Value
 fromGCMtoCCS regId identif msg =
         let Object hmap = toJSON msg
             nmap        = HM.delete cREGISTRATION_IDS hmap
             nmap'       = HM.insert cTo (String regId) nmap
-            nmap''      = HM.insert cMessageId (String (pack $ show identif)) nmap'
+            nmap''      = HM.insert cMessageId (String identif) nmap'
         in Object nmap''
