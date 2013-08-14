@@ -15,22 +15,24 @@ import Types
 import Network.PushNotify.Gcm.Types
 
 import Data.XML.Types
+import Control.Applicative
 import Control.Concurrent
 import Control.Concurrent.Async
-import Control.Concurrent.STM.TChan
+import Control.Concurrent.Chan
 import Control.Monad
-import Control.Monad.STM
 import Data.Aeson
+import Data.Aeson.Types
 import Data.Aeson.Parser
-import Data.Attoparsec.ByteString
 import Data.Default
+import Data.Functor
 import Data.IORef
 import Data.Int
 import Data.Text
 import Data.Text.Encoding
-import Data.Monoid                    ((<>))
-import qualified Control.Exception    as CE
-import qualified Data.HashMap.Strict  as HM
+import Data.Monoid                          ((<>))
+import qualified Data.Attoparsec.ByteString as AB
+import qualified Control.Exception          as CE
+import qualified Data.HashMap.Strict        as HM
 import Network
 import Network.Xmpp
 import Network.BSD
@@ -44,129 +46,157 @@ connectCCS config = do
     soc   <- socket AF_INET Stream pro
 
     result <- session
-                  (unpack cCCS_URL)
-                  def{sessionStreamConfiguration = def{ socketDetails = Just (soc , SockAddrInet (fromIntegral cCCS_PORT) (hostAddress he) ) } }
-                  (Just (( [plain (senderID config <> "@" <> cCCS_URL) Nothing (apiKey config) ]) , Nothing))
+                (unpack cCCS_URL)
+                def{ sessionStreamConfiguration = def{ 
+                       socketDetails = Just (soc , SockAddrInet (fromIntegral cCCS_PORT) (hostAddress he) ) } 
+                   }
+                (Just (( [plain (senderID config <> "@" <> cCCS_URL) Nothing (apiKey config) ]) , Nothing))
     case result of
         Right s -> return s
         Left e  -> error $ "XmppFailure: " ++ (show e)
 
 
 -- | 'startCCS' starts the CCS service.
-startCCS :: GCMAppConfig -> IO CCSManager
-startCCS config = do
-        c       <- newTChanIO
+startCCS :: GCMAppConfig -> (RegId -> Value -> IO ()) -> IO CCSManager
+startCCS config newMessageCallbackFunction = do
+        c       <- newChan
         ref     <- newIORef $ Just ()
-        tID     <- forkIO $ CE.catch (ccsWorker config c) (\e -> let _ = (e :: CE.SomeException) 
+        tID     <- forkIO $ CE.catch (ccsWorker config c newMessageCallbackFunction) (\e -> let _ = (e :: CE.SomeException) 
                                                                   in atomicModifyIORef ref (\_ -> (Nothing,())))
         return $ CCSManager ref c tID 0
 
 
-ccsWorker :: GCMAppConfig -> TChan (MVar Text , GCMmessage) -> IO ()
-ccsWorker config requestChan = do
-        sess       <- connectCCS config
-        cont       <- newMVar 1000
-        hmap       <- newMVar HM.empty
-        lock       <- newEmptyMVar
-        s          <- async (catch $ sender 1 cont lock hmap requestChan sess)
-        r          <- async (catch $ receiver cont lock hmap sess)
-        res        <- waitEither s r
-
-        case res of
-            Left  _ -> cancel r
-            Right v -> cancel s
-
-        ccsWorker config requestChan -- restarts.
+ccsWorker :: GCMAppConfig -> Chan (MVar GCMresult , GCMmessage) -> (RegId -> Value -> IO ()) -> IO ()
+ccsWorker config requestChan callBackF = do
+        sess   <- connectCCS config
+        cont   <- newMVar 1000
+        hmap   <- newMVar HM.empty
+        lock   <- newEmptyMVar
+        s      <- async (sender 1 cont lock hmap requestChan sess)
+        r      <- async (receiver cont lock hmap sess)
+        res    <- waitEitherCatchCancel s r
+        newMap <- takeMVar hmap
+        _      <- return $ HM.foldr (\m r -> r >> (putMVar (fst m) def{errorToReSend = [snd m]})) (return ()) newMap
+        ccsWorker config requestChan callBackF -- restarts.
 
         where
-            catch :: IO Int -> IO Int
-            catch m = CE.catch m (\e -> do
-                            let _ = (e :: CE.SomeException)
-                            return 0)
-            
-            sender  :: Int32
-                    -> MVar Int
-                    -> MVar ()
-                    -> MVar (HM.HashMap Int32 (MVar Text))
-                    -> TChan (MVar Text , GCMmessage)
-                    -> Session
-                    -> IO Int
-            sender n cont lock hmap requestChan sess = do -- this function reads the channel and sends the messages.
-                    
-                    c <- readMVar cont
-                    putMVar cont (c-1)
-                    if (c-1) == 0
-                      then takeMVar lock -- blocks
-                      else return ()
-
-                    (var,msg)   <- atomically $ readTChan requestChan
-
-                    let value   = fromGCMtoCCS (Prelude.head $ registration_ids msg) n msg
-                        message = Message{
+            buildMessage :: Value -> Message
+            buildMessage value = Message{
                                     messageID      = Nothing
                                   , messageFrom    = Nothing
                                   , messageTo      = Nothing
                                   , messageLangTag = Nothing
                                   , messageType    = Normal
-                                  , messagePayload = [Element (Name "gcm" (Just "google:mobile:data") Nothing) [] [(NodeContent $ ContentText $ pack $ show value)] ]
+                                  , messagePayload = [ Element (Name "gcm" (Just "google:mobile:data") Nothing) [] 
+                                                       [(NodeContent $ ContentText $ pack $ show value)]
+                                                     ]
                                   }
-                    
-                    sendMessage message sess
-                    
+            
+            buildAck :: Text -> Text -> Message
+            buildAck regId id = buildMessage $ object [cTo .= regId , cMessageId .= id , cMessageType .= cAck]
+
+            sender  :: Int32
+                    -> MVar Int
+                    -> MVar ()
+                    -> MVar (HM.HashMap Text (MVar GCMresult,RegId))
+                    -> Chan (MVar GCMresult , GCMmessage)
+                    -> Session
+                    -> IO Int
+            sender n cont lock hmap requestChan sess = do -- this function reads the channel and sends the messages.
+
+                    c <- takeMVar cont
+                    putMVar cont (c-1)
+                    if (c-1) == 0
+                      then takeMVar lock -- blocks
+                      else return ()
+
+                    (var,msg)   <- readChan requestChan
+
+                    let id = pack $ show n
+                        value   = fromGCMtoCCS (Prelude.head $ registration_ids msg) id msg
+
                     hashMap <- takeMVar hmap
-                    let newMap = HM.insert n var hashMap
+                    let newMap = HM.insert id (var,(Prelude.head $ registration_ids msg)) hashMap
                     putMVar hmap newMap
+                    
+                    sendMessage (buildMessage value) sess
 
                     sender (n+1) cont lock hmap requestChan sess
 
+
+            controlPars :: Value -> Parser (Text,Text,Text,Text)
+            controlPars (Object v) = (,,,) <$>
+                              v .: cMessageId <*>
+                              v .: cFrom <*>
+                              v .: cMessageType <*>
+                              v .:? cError
+            controlPars _          = mzero
+            
+            msgPars :: Value -> Parser (Value,Text,Text)
+            msgPars (Object v) = (,,) <$>
+                              v .: cData <*>
+                              v .: cMessageId <*>
+                              v .: cFrom
+            msgPars _          = mzero
+
+
             receiver :: MVar Int
-                     -> MVar()
-                     -> MVar (HM.HashMap Int32 (MVar Text))
+                     -> MVar ()
+                     -> MVar (HM.HashMap Text (MVar GCMresult,RegId))
                      -> Session
                      -> IO Int
             receiver cont lock hmap sess = do
-                         msg <- getMessage sess
+                    msg <- getMessage sess
 
-                         let [Element _ _ ([NodeContent (ContentText p)])] = messagePayload msg
-                             value = case maybeResult $ parse json $ encodeUtf8 p of
-                                         Nothing -> object []
-                                         Just v  -> v
+                    let [Element _ _ ([NodeContent (ContentText p)])] = messagePayload msg
+                        value = case AB.maybeResult $ AB.parse json $ encodeUtf8 p of
+                                    Nothing -> object []
+                                    Just v  -> v
 
-                         --  Here I analize the value:
-                         --  if it is a ACK/NACK message    -> I look for the MVar of this message in the hashmap 
-                         --                                    and I put the response in the MVar.
-                         --  if it is a message from device -> I send the Ack response to CCS server
-                         --                                    and start the callback function.
-                         
-                         -- This need to be completed!
+                    case parseMaybe controlPars value of
+                        Nothing          -> case parseMaybe msgPars value of
+                                              Nothing       -> return () -- no expected msg
+                                              Just (v,id,f) -> do -- it is a message from device so I send the Ack response to CCS server
+                                                                  -- and start the callback function.
+                                                                 sendMessage (buildAck f id) sess
+                                                                 forkIO $ callBackF f v
+                                                                 return ()
+                        Just (id,f,t,e)  -> do -- it is an ACK/NACK message so I look for the MVar of this message 
+                                               -- in the hashmap and I put the response in the MVar.
+                                              c <- takeMVar cont
+                                              if c == 0
+                                                then putMVar lock () -- unblock the sender thread
+                                                else return ()
+                                              putMVar cont (c+1)
 
-                         c <- takeMVar cont
-                         if c == 0
-                          then putMVar lock () -- unblock the sender thread
-                          else return ()
-                         putMVar cont (c+1)
-                         
-                         let id = undefined
-                         
-                         hashMap <- takeMVar hmap
-                         case HM.lookup id hashMap of
-                           Just m  -> putMVar m "Result"
-                           Nothing -> return ()
-                         let newMap = HM.delete id hashMap
-                         putMVar hmap newMap
+                                              hashMap <- readMVar hmap
+                                              case HM.lookup id hashMap of
+                                                Just (var,regId) -> do
+                                                  let result = case t of
+                                                             cAck -> def
+                                                             _    -> case e of
+                                                                       Just ->
+                                                                       Just ->
+                                                                       _     -> def{errorToReSend = [regId]} -- no expected msg
+                                                
+                                                  putMVar var result -- to complete
+                                                Nothing -> return ()
+                                              hashMap' <- takeMVar hmap
+                                              let newMap = HM.delete id hashMap'
+                                              putMVar hmap newMap
 
-                         receiver cont lock hmap sess
+                    receiver cont lock hmap sess
 
 
 -- | 'closeCCS' stops the CCS service.
 closeCCS :: CCSManager -> IO ()
 closeCCS m = do
-                atomicModifyIORef (mState m) (\_ -> (Nothing,()))
-                killThread $ mWorkerID m
+               atomicModifyIORef (mState m) (\_ -> (Nothing,()))
+               killThread $ mWorkerID m
 
 
 -- | 'sendCCS' sends the message through a CCS Server.
-sendCCS :: CCSManager -> GCMmessage -> IO Text
+sendCCS :: CCSManager -> GCMmessage -> IO GCMresult
 sendCCS man msg = do
     s <- readIORef $ mState man
     case s of
@@ -174,6 +204,6 @@ sendCCS man msg = do
       Just () -> do
           let requestChan = mCcsChannel man
           var <- newEmptyMVar
-          atomically $ writeTChan requestChan (var,msg)
+          writeChan requestChan (var,msg)
           takeMVar var
 
