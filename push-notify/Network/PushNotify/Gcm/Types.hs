@@ -18,8 +18,9 @@ import Control.Monad.Writer
 
 -- | 'GCMAppConfig' represents the main necessary information for sending notifications through GCM.
 data GCMAppConfig = GCMAppConfig
-    {   apiKey :: Text
-    ,   numRet :: Int
+    {   apiKey   :: Text
+    ,   senderID :: Text
+    ,   numRet   :: Int
     }   deriving Show
 
 
@@ -59,7 +60,7 @@ data GCMresult = GCMresult
     ,   messagesIds       :: [(RegId,Text)] -- ^ Successful RegIds, and its message_id
     ,   errorUnRegistered :: [RegId] -- ^ Failed regIds that need to be removed.
     ,   errorToReSend     :: [RegId] -- ^ Failed regIds that I need to resend the message to,
-                                 -- ^ because there was an internal problem in the GCM servers.
+                                     -- ^ because there was an internal problem in the GCM servers.
     ,   errorRest         :: [(RegId,Text)] -- ^ Failed regIds with the rest of the possible errors (probably a non-recoverable errors)
     } deriving Show
 
