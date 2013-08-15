@@ -37,18 +37,28 @@ import Network
 import Network.Xmpp
 import Network.BSD
 import Network.Socket
-
+import Network.TLS
+import Network.TLS.Extra                (fileReadCertificate,fileReadPrivateKey,ciphersuite_all)
+import System.Log.Logger
 -- 'connectCCS' starts a secure connection with CCS servers.
 connectCCS :: GCMAppConfig -> IO Session
 connectCCS config = do
+    updateGlobalLogger "Pontarius.Xmpp" $ setLevel DEBUG
     he    <- getHostByName $ unpack cCCS_URL
     pro   <- (getProtocolNumber "tcp")
     soc   <- socket AF_INET Stream pro
-
     result <- session
                 (unpack cCCS_URL)
                 def{ sessionStreamConfiguration = def{ 
-                       socketDetails = Just (soc , SockAddrInet (fromIntegral cCCS_PORT) (hostAddress he) ) } 
+                         socketDetails = Just (soc , SockAddrInet (fromIntegral cCCS_PORT) (hostAddress he) ) 
+                       , establishSession = False
+                       , tlsParams = defaultParamsClient{ 
+                                         pConnectVersion    = TLS11
+                                       , pAllowedVersions   = [TLS10,TLS11,TLS12]
+                                       , pCiphers           = ciphersuite_all
+                                       , onCertificatesRecv = const $ return CertificateUsageAccept
+                                       }
+                       }
                    }
                 (Just (( [plain (senderID config <> "@" <> cCCS_URL) Nothing (apiKey config) ]) , Nothing))
     case result of
@@ -76,7 +86,7 @@ ccsWorker config requestChan callBackF = do
         r      <- async (receiver cont lock hmap sess)
         res    <- waitEitherCatchCancel s r
         newMap <- takeMVar hmap
-        _      <- return $ HM.foldr (\m r -> r >> (putMVar (fst m) def{errorToReSend = [snd m]})) (return ()) newMap
+        _      <- return $ HM.foldr (\m r -> r >> (tryPutMVar (fst m) def{failure = Just 1 , errorToReSend = [snd m]})) (return False) newMap
         ccsWorker config requestChan callBackF -- restarts.
 
         where
@@ -124,7 +134,7 @@ ccsWorker config requestChan callBackF = do
                     sender (n+1) cont lock hmap requestChan sess
 
 
-            controlPars :: Value -> Parser (Text,Text,Text,Text)
+            controlPars :: Value -> Parser (Text,Text,Text,Maybe Text)
             controlPars (Object v) = (,,,) <$>
                               v .: cMessageId <*>
                               v .: cFrom <*>
@@ -154,15 +164,15 @@ ccsWorker config requestChan callBackF = do
                                     Just v  -> v
 
                     case parseMaybe controlPars value of
-                        Nothing          -> case parseMaybe msgPars value of
+                        Nothing         -> case parseMaybe msgPars value of
                                               Nothing       -> return () -- no expected msg
                                               Just (v,id,f) -> do -- it is a message from device so I send the Ack response to CCS server
                                                                   -- and start the callback function.
                                                                  sendMessage (buildAck f id) sess
                                                                  forkIO $ callBackF f v
                                                                  return ()
-                        Just (id,f,t,e)  -> do -- it is an ACK/NACK message so I look for the MVar of this message 
-                                               -- in the hashmap and I put the response in the MVar.
+                        Just (id,f,t,e) -> do -- it is an ACK/NACK message so I look for the MVar of this message 
+                                              -- in the hashmap and I put the response in the MVar.
                                               c <- takeMVar cont
                                               if c == 0
                                                 then putMVar lock () -- unblock the sender thread
@@ -173,13 +183,15 @@ ccsWorker config requestChan callBackF = do
                                               case HM.lookup id hashMap of
                                                 Just (var,regId) -> do
                                                   let result = case t of
-                                                             cAck -> def
-                                                             _    -> case e of
-                                                                       Just ->
-                                                                       Just ->
-                                                                       _     -> def{errorToReSend = [regId]} -- no expected msg
-                                                
-                                                  putMVar var result -- to complete
+                                                        cAck -> def{success = Just 1}
+                                                        _    -> (case e of
+                                                          Just cBadRegistration     -> def{errorRest = [(regId,cBadRegistration)]}
+                                                          Just cDeviceUnregistered  -> def{errorUnRegistered = [regId]}
+                                                          Just cInternalServerError -> def{errorRest = [(regId,cInternalServerError)]}
+                                                          Just cServiceUnAvailable  -> def{errorToReSend = [regId]}
+                                                          _                         -> def{errorToReSend = [regId]} -- no expected msg
+                                                          ){failure = Just 1}
+                                                  putMVar var result
                                                 Nothing -> return ()
                                               hashMap' <- takeMVar hmap
                                               let newMap = HM.delete id hashMap'
