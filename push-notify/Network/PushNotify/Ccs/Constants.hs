@@ -32,3 +32,15 @@ cData = "data"
 
 cError :: Text
 cError = "error"
+
+cBadRegistration :: Text
+cBadRegistration = "BAD_REGISTRATION"
+
+cDeviceUnregistered :: Text
+cDeviceUnregistered = "DEVICE_UNREGISTERED"
+
+cInternalServerError :: Text
+cInternalServerError = "INTERNAL_SERVER_ERROR"
+
+cServiceUnAvailable :: Text
+cServiceUnAvailable = "SERVICE_UNAVAILABLE"
