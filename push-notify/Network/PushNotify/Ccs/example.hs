@@ -8,7 +8,7 @@ import Data.Default
 
 main :: IO ()
 main = do
-         man <- startCCS (GCMAppConfig "key=" "21111121212" 5)
+         man <- startCCS (GCMAppConfig "ApiKey" "senderId" 5)
                          (\_ _ -> return ())
          sendCCS man def
          closeCCS man
