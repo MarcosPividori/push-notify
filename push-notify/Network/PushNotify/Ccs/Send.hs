@@ -40,27 +40,17 @@ import Network.Socket
 import Network.TLS
 import Network.TLS.Extra                (fileReadCertificate,fileReadPrivateKey,ciphersuite_all)
 import System.Log.Logger
+
 -- 'connectCCS' starts a secure connection with CCS servers.
 connectCCS :: GCMAppConfig -> IO Session
 connectCCS config = do
     updateGlobalLogger "Pontarius.Xmpp" $ setLevel DEBUG
-    he    <- getHostByName $ unpack cCCS_URL
-    pro   <- (getProtocolNumber "tcp")
-    soc   <- socket AF_INET Stream pro
     result <- session
                 (unpack cCCS_URL)
+                (Just ( \_ -> [plain (senderID config <> "@" <> cCCS_URL) Nothing (apiKey config) ] , Nothing))
                 def{ sessionStreamConfiguration = def{ 
-                         socketDetails = Just (soc , SockAddrInet (fromIntegral cCCS_PORT) (hostAddress he) ) 
-                       , establishSession = False
-                       , tlsParams = defaultParamsClient{ 
-                                         pConnectVersion    = TLS11
-                                       , pAllowedVersions   = [TLS10,TLS11,TLS12]
-                                       , pCiphers           = ciphersuite_all
-                                       , onCertificatesRecv = const $ return CertificateUsageAccept
-                                       }
-                       }
+                         connectionDetails = UseHost (unpack cCCS_URL) (PortNumber (fromIntegral cCCS_PORT))}
                    }
-                (Just (( [plain (senderID config <> "@" <> cCCS_URL) Nothing (apiKey config) ]) , Nothing))
     case result of
         Right s -> return s
         Left e  -> error $ "XmppFailure: " ++ (show e)
