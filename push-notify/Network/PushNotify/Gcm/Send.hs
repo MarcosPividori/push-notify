@@ -29,7 +29,6 @@ import Network.HTTP.Conduit         (http, parseUrl, withManager, RequestBody (R
                                      newManager, def, Request)
 
 
-
 retrySettingsGCM = RetrySettings {
     backoff     = True
 ,   baseDelay   = 100
@@ -48,7 +47,7 @@ sendGCM manager cnfg msg = runResourceT $ do
               , requestBody = RequestBodyLBS valueBS
               , requestHeaders = [ 
                           ("Content-Type", "application/json")
-                        , ("Authorization", fromString $ unpack $ apiKey cnfg) -- API Key. (provided by Google)
+                        , ("Authorization", fromString $ "key=" ++ (unpack $ apiKey cnfg) ) -- API Key. (provided by Google)
                         ]
               }
     retry req manager (numRet cnfg) msg
