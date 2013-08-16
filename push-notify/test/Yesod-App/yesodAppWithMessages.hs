@@ -205,8 +205,8 @@ main = do
       ref <- newIORef Nothing
       (man,pSub) <- startPushService $ PushServiceConfig{
             pushConfig           = def{
-                                       gcmAppConfig  = Just $ GCMAppConfig "key=" 5 -- Here you must complete with the correct Api Key.
---                                 ,   apnsAppConfig = Just apnsMan
+                                       gcmAppConfig  = Just $ GCMAppConfig "apikey" "senderId" 5 -- Here you must complete with the correct Api Key and SenderId.
+--                                 ,   apnsAppConfig = Just def{certificate  = "" , privateKey   = "" }
                                    ,   mpnsAppConfig = Just def
                                    }
         ,   newMessageCallback   = handleNewMessage pool ref
