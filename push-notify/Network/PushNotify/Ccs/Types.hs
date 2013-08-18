@@ -1,11 +1,10 @@
 -- GSoC 2013 - Communicating with mobile devices.
 {-# LANGUAGE FlexibleContexts #-}
--- | This Module define the main data types for sending Push Notifications through Google Cloud Messaging.
+-- | This Module define the main data types for sending Push Notifications through Cloud Connection Server (GCM).
 module Types
     ( CCSManager(..)
     , fromGCMtoCCS
     ) where
-
 
 import Network.PushNotify.Gcm.Constants
 import Network.PushNotify.Gcm.Types
@@ -15,7 +14,6 @@ import Constants
 import Control.Concurrent
 import Control.Concurrent.Chan
 import Data.IORef
-import Data.Int
 import Data.Default
 import Data.Aeson.Types
 import Data.Text

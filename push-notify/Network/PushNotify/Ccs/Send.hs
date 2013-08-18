@@ -3,7 +3,7 @@
 {-# LANGUAGE OverloadedStrings, TypeFamilies, TemplateHaskell,
              QuasiQuotes, MultiParamTypeClasses, GeneralizedNewtypeDeriving, FlexibleContexts, GADTs #-}
 
--- | This Module define the main function to send Push Notifications through CCS.
+-- | This Module define the main function to send Push Notifications through Cloud Connection Server (GCM).
 module Send
     ( startCCS
     , closeCCS
@@ -35,10 +35,6 @@ import qualified Control.Exception          as CE
 import qualified Data.HashMap.Strict        as HM
 import Network
 import Network.Xmpp
-import Network.BSD
-import Network.Socket
-import Network.TLS
-import Network.TLS.Extra                (fileReadCertificate,fileReadPrivateKey,ciphersuite_all)
 import System.Log.Logger
 
 -- 'connectCCS' starts a secure connection with CCS servers.
@@ -59,9 +55,9 @@ connectCCS config = do
 -- | 'startCCS' starts the CCS service.
 startCCS :: GCMAppConfig -> (RegId -> Value -> IO ()) -> IO CCSManager
 startCCS config newMessageCallbackFunction = do
-        c       <- newChan
-        ref     <- newIORef $ Just ()
-        tID     <- forkIO $ CE.catch (ccsWorker config c newMessageCallbackFunction) (\e -> let _ = (e :: CE.SomeException) 
+        c      <- newChan
+        ref    <- newIORef $ Just ()
+        tID    <- forkIO $ CE.catch (ccsWorker config c newMessageCallbackFunction) (\e -> let _ = (e :: CE.SomeException) 
                                                                   in atomicModifyIORef ref (\_ -> (Nothing,())))
         return $ CCSManager ref c tID 0
 
