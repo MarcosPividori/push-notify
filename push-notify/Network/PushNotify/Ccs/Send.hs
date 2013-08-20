@@ -1,7 +1,7 @@
 -- GSoC 2013 - Communicating with mobile devices.
 
 {-# LANGUAGE OverloadedStrings, TypeFamilies, TemplateHaskell,
-             QuasiQuotes, MultiParamTypeClasses, GeneralizedNewtypeDeriving, FlexibleContexts, GADTs #-}
+             QuasiQuotes, MultiParamTypeClasses, GeneralizedNewtypeDeriving, FlexibleContexts, GADTs , ScopedTypeVariables #-}
 
 -- | This Module define the main function to send Push Notifications through Cloud Connection Server (GCM).
 module Send
@@ -14,7 +14,6 @@ import Constants
 import Types
 import Network.PushNotify.Gcm.Types
 
-import Data.XML.Types
 import Control.Applicative
 import Control.Concurrent
 import Control.Concurrent.Async
@@ -30,27 +29,54 @@ import Data.Int
 import Data.Text
 import Data.Text.Encoding
 import Data.Monoid                          ((<>))
+import Data.XML.Types
 import qualified Data.Attoparsec.ByteString as AB
 import qualified Control.Exception          as CE
 import qualified Data.HashMap.Strict        as HM
+import qualified Data.ByteString.Lazy       as BL
+import qualified Data.ByteString            as BS
 import Network
 import Network.Xmpp
+import Network.Xmpp.Internal
+import Network.TLS
+import Network.TLS.Extra
+import Crypto.Random.API
+import GHC.IO.Handle
 import System.Log.Logger
 
 -- 'connectCCS' starts a secure connection with CCS servers.
 connectCCS :: GCMAppConfig -> IO Session
 connectCCS config = do
     updateGlobalLogger "Pontarius.Xmpp" $ setLevel DEBUG
+    let getStreamHandle = do
+            hdl <- connectTo (unpack cCCS_URL) (PortNumber (fromIntegral cCCS_PORT))
+            let bck = Backend { backendFlush = hFlush hdl
+                              , backendClose = hClose hdl
+                              , backendSend  = BS.hPut hdl
+                              , backendRecv  = BS.hGet hdl
+                              }
+            gen <- getSystemRandomGen
+            ctx <- contextNew
+                       bck
+                       (defaultParamsClient { pCiphers = ciphersuite_medium })
+                       gen
+            handshake ctx
+            return StreamHandle { streamSend = \bs -> CE.catch
+                                      (sendData ctx (BL.fromChunks [bs]) >>
+                                           return True)
+                                      (\(_e :: CE.SomeException) -> return False)
+                                , streamReceive = \bs -> recvData ctx
+                                , streamFlush = contextFlush ctx
+                                , streamClose = bye ctx }
     result <- session
                 (unpack cCCS_URL)
                 (Just ( \_ -> [plain (senderID config <> "@" <> cCCS_URL) Nothing (apiKey config) ] , Nothing))
-                def{ sessionStreamConfiguration = def{ 
-                         connectionDetails = UseHost (unpack cCCS_URL) (PortNumber (fromIntegral cCCS_PORT))}
+                def{ sessionStreamConfiguration = def{
+                         connectionDetails = UseConnection getStreamHandle }
                    }
     case result of
         Right s -> return s
-        Left e  -> error $ "XmppFailure: " ++ (show e)
-
+        Left e  -> fail $ "XmppFailure: " ++ (show e)
 
 -- | 'startCCS' starts the CCS service.
 startCCS :: GCMAppConfig -> (RegId -> Value -> IO ()) -> IO CCSManager
