@@ -6,6 +6,9 @@ import Data.Default
 import Data.Text (pack)
 import Control.Concurrent
 
+main :: IO ()
+main = example1
+
 example1 :: IO ()
 example1 = do
             let confg = def{
@@ -45,7 +48,7 @@ example2 = do
             loop 1000 manager var
             where
                 loop 0 manager var = do
-                                            threadDelay 50000000
+                                            threadDelay 5000000
                                             closeAPNS manager
                 loop n manager var = do
                            forkIO $ do
