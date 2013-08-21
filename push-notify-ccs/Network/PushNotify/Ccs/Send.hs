@@ -224,17 +224,10 @@ ccsWorker config requestChan callBackF = do
                                               putMVar cont (c+1)
 
                                               hashMap <- readMVar hmap
+                                              
                                               case HM.lookup id hashMap of
                                                 Just (var,regId) -> do
-                                                  let result = case t of
-                                                        cAck -> def{success = Just 1}
-                                                        _    -> (case e of
-                                                          Just cBadRegistration     -> def{errorRest = [(regId,cBadRegistration)]}
-                                                          Just cDeviceUnregistered  -> def{errorUnRegistered = [regId]}
-                                                          Just cInternalServerError -> def{errorRest = [(regId,cInternalServerError)]}
-                                                          Just cServiceUnAvailable  -> def{errorToReSend = [regId]}
-                                                          _                         -> def{errorToReSend = [regId]} -- no expected msg
-                                                          ){failure = Just 1}
+                                                  let result = getRes t e regId
                                                   tryPutMVar var result
                                                 Nothing -> return True
                                               hashMap' <- takeMVar hmap
@@ -242,6 +235,14 @@ ccsWorker config requestChan callBackF = do
                                               putMVar hmap newMap
 
                     receiver cont lock hmap sess
+                      where 
+                        getRes t e regId
+                           | t == cAck                      = def{success = Just 1}
+                           | e == Just cBadRegistration     = def{failure = Just 1 , errorRest         = [(regId,cBadRegistration)] }
+                           | e == Just cDeviceUnregistered  = def{failure = Just 1 , errorUnRegistered = [regId] }
+                           | e == Just cInternalServerError = def{failure = Just 1 , errorRest         = [(regId,cInternalServerError)] }
+                           | e == Just cServiceUnAvailable  = def{failure = Just 1 , errorToReSend     = [regId] }
+                           | otherwise                      = def{failure = Just 1 , errorToReSend     = [regId] } -- no expected msg
 
 
 -- | 'closeCCS' stops the CCS service.
