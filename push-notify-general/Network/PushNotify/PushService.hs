@@ -99,11 +99,14 @@ sendPush man notif devices = do
                     pConfig     = serviceConfig man
                     config      = pushConfig pConfig
 
-                r1 <- case (gcmDevices , gcmAppConfig config , gcmNotif  notif , httpManager man) of
-                          (_:_,Just cnf,Just msg,Just m) -> do
+                r1 <- case (gcmDevices , gcmAppConfig config , gcmNotif  notif , httpManager man,ccsManager man) of
+                          (_:_,Just cnf,Just msg,_,Just m) -> do
+                                                               res <- sendCCS m msg{registration_ids = gcmDevices}
+                                                               return $ toPushResult res
+                          (_:_,Just cnf,Just msg,Just m,_ ) -> do
                                                                res <- sendGCM m cnf msg{registration_ids = gcmDevices}
                                                                return $ toPushResult res
-                          _                              -> return def
+                          _                                 -> return def
 
                 r2 <- case (apnsDevices , apnsNotif notif , apnsManager man) of
                           (_:_,Just msg,Just m) -> do
