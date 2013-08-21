@@ -33,7 +33,7 @@ on how it would be to add support for APNS on this Yesod app.
 
 <img src="http://github.com/MarcosPividori/GSoC-Communicating-with-mobile-devices/raw/master/test/BackAndForth%20Messaging/Img3.jpg" width="800px"/>
 
-<img src="http://github.com/MarcosPividori/GSoC-Communicating-with-mobile-devices/raw/master/ptest/BackAndForth%20Messaging/Img4.jpg" width="800px"/>
+<img src="http://github.com/MarcosPividori/GSoC-Communicating-with-mobile-devices/raw/master/test/BackAndForth%20Messaging/Img4.jpg" width="800px"/>
 
 
 **About the Yesod App:**
