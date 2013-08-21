@@ -1,0 +1,30 @@
+name:                push-notify-general
+version:             0.1.0.0
+synopsis:            A general server-side library for sending push notifications through different services as APNS, GCM, MPNS, behind a common abstraction.
+
+homepage:            https://github.com/MarcosPividori/GSoC-Communicating-with-mobile-devices/tree/master/push-notify-general
+license:             MIT
+license-file:        LICENSE
+author:              Marcos Pividori
+maintainer:          marcos.pividori@gmail.com
+
+category:            Network
+build-type:          Simple
+cabal-version:       >=1.8
+
+library
+  exposed-modules:   Network.PushNotify.YesodPushAppRoutes,
+                     Network.PushNotify.PushService,
+                     Network.PushNotify.YesodPushApp,
+                     Network.PushNotify.General
+
+  build-depends:     base ==4.5.*,
+                     yesod ==1.2.*,
+                     push-notify ==0.1.*,
+                     push-notify-ccs ==0.1.*,
+                     text ==0.11.*,
+                     aeson ==0.6.*,
+                     http-conduit ==1.9.*,
+                     unordered-containers ==0.2.*,
+                     http-types ==0.8.*,
+                     data-default ==0.5.*
