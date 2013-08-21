@@ -51,7 +51,7 @@ public class GcmBroadcastReceiver extends BroadcastReceiver {
         }        
         
         if (GoogleCloudMessaging.MESSAGE_TYPE_SEND_ERROR.equals(messageType)) {
-            sendNotification("Send error: " + intent.getExtras().toString());
+        	displayMessage(context,"The message couldn't be sent: " + intent.getExtras().toString());
         } else if (GoogleCloudMessaging.MESSAGE_TYPE_DELETED.equals(messageType)) {
             sendNotification("Deleted messages on server: " +
                     intent.getExtras().toString());

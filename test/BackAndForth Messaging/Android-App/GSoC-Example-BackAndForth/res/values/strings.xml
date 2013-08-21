@@ -10,10 +10,13 @@
     <string name="options_clear">Clear</string>
     <string name="options_exit">Exit</string>
     <string name="options_information">Info</string>
+    <string name="options_settings">Settings</string>
     <string name="info_message">This app is a very simple example to show the GCM registration and reception of 
 notifications from a Yesod Server.\nThis was developed as part of the GSoC project: \"Communicating with Mobile Devices\"</string>
     <string name="info_title">General information\:</string>
     <string name="close">Close</string>
     <string name="edit_message">Enter a message</string>
     <string name="button_send">Send</string>
+    <string name="pref_sendOption">Service to send messages to server.</string>
+    <string name="pref_sendOptionCCS">Use CCS service.</string>
 </resources>

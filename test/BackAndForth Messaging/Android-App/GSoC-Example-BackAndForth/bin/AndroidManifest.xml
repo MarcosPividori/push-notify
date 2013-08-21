@@ -41,6 +41,7 @@
         </activity>
         
         <activity android:name="com.example.gsoc_example_BackAndForth.Register" android:launchMode= "singleTop"></activity>
+        <activity android:name="com.example.gsoc_example_BackAndForth.SettingsActivity"></activity>
     </application>
     
 

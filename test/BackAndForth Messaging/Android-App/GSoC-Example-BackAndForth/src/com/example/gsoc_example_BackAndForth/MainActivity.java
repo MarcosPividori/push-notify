@@ -2,6 +2,7 @@ package com.example.gsoc_example_BackAndForth;
 
 import java.io.IOException;
 import java.sql.Timestamp;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import android.os.AsyncTask;
 import android.os.Bundle;
@@ -32,6 +33,7 @@ public class MainActivity extends Activity {
 	public static final String EXTRA_MESSAGE = "message";
     public static final String PROPERTY_REG_ID = "registration_id";
     private static final String PROPERTY_ON_SERVER_EXPIRATION_TIME = "onServerExpirationTimeMs";
+    AtomicInteger msgId = new AtomicInteger();
     
     // Default lifespan (7 days) of a reservation until it is considered expired.
     public static final long REGISTRATION_EXPIRY_TIME_MS = 1000 * 3600 * 24 * 7;
@@ -62,7 +64,7 @@ public class MainActivity extends Activity {
         registered = prefs.getBoolean("registered", false);
         onProcessOfRegistration = prefs.getBoolean("onProcessOfRegistration", false);
         user = prefs.getString("user","");
-        password = prefs.getString("user","");
+        password = prefs.getString("password","");
         
         String historial = prefs.getString("historial","No Messages!\n");
              
@@ -127,6 +129,11 @@ public class MainActivity extends Activity {
                 dialog = builder.create();
                 dialog.show();
                 return true;
+                
+            case R.id.options_settings:
+            	Intent intent = new Intent(this, SettingsActivity.class);
+				startActivity(intent);
+				return true;
             //Close the app.
             case R.id.options_exit:
                 finish();
@@ -283,7 +290,7 @@ public class MainActivity extends Activity {
     		new AsyncTask<String, Void, Void>() {
     			@Override
     			protected Void doInBackground(String... parameters) {
-    				ServerUtilities.sendMsgToServer(context,regid,user,password,parameters[0]);
+    				ServerUtilities.sendMsgToServer(context,regid,user,password,parameters[0],msgId);
     				return null;
     			}
     		}.execute(message,null,null);
