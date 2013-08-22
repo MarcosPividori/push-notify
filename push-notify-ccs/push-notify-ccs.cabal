@@ -33,4 +33,5 @@ library
                      tls ==1.1.*,
                      tls-extra ==0.6.*,
                      crypto-random-api ==0.2.*,
-                     hslogger ==1.2.*
+                     hslogger ==1.2.*,
+                     mtl ==2.1.*
