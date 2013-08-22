@@ -153,8 +153,8 @@ postFromWebR = do
         Just m  -> setSession "history" (m <> "\n" <> msg)
         Nothing -> setSession "history" msg
     redirect RootR
-    where
-        xmlMessage msg = Element (Name "Notification" (Just "WPNotification") (Just "wp")) (M.singleton "xmlns:wp" "WPNotification") [xml|
+
+xmlMessage msg = Element (Name "Notification" (Just "WPNotification") (Just "wp")) (M.singleton "xmlns:wp" "WPNotification") [xml|
 <wp:Toast>
     <wp:Text1>New message: 
     <wp:Text2>#{msg}
@@ -271,8 +271,8 @@ main = do
                                         case m of
                                           Nothing  -> return ()
                                           Just msg -> do
-                                                        let message = def {gcmNotif  = Just $ def {
-                                                                      data_object = Just (HM.fromList [(pack "Message" .= msg)]) }}
+                                                        let message = def { gcmNotif  = Just $ def { data_object = Just (HM.fromList [(pack "Message" .= msg)]) }
+                                                                          , mpnsNotif = Just $ def {target = Toast , restXML = Document (Prologue [] Nothing []) (xmlMessage msg) []} }
                                                         sendPush man message [d]
                                                         putStr ("\nNew message from device!:\n-User: " ++ show usr
                                                                 ++ "\n-Msg: " ++ show msg ++ "\n")
