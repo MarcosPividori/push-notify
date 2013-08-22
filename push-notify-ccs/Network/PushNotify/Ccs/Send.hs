@@ -19,6 +19,7 @@ import Control.Concurrent
 import Control.Concurrent.Async
 import Control.Concurrent.Chan
 import Control.Concurrent.STM.TChan
+import Control.Monad.Error
 import Control.Monad.STM
 import Control.Monad
 import Data.Aeson
@@ -52,7 +53,7 @@ import System.Log.Logger
 connectCCS :: GCMAppConfig -> IO Session
 connectCCS config = do
     --updateGlobalLogger "Pontarius.Xmpp" $ setLevel DEBUG
-    let getStreamHandle = do
+    let getStreamHandle = lift $ do
             hdl <- connectTo (unpack cCCS_URL) (PortNumber (fromIntegral cCCS_PORT))
             let bck = Backend { backendFlush = hFlush hdl
                               , backendClose = hClose hdl
@@ -94,8 +95,8 @@ startCCS config newMessageCallbackFunction = do
 ccsWorker :: GCMAppConfig -> TChan (MVar GCMresult , MVar (Chan ()), GCMmessage) -> (RegId -> Value -> IO ()) -> IO ()
 ccsWorker config requestChan callBackF = do
         sess      <- connectCCS config
-        cont      <- newMVar 1000
-        hmap      <- newMVar HM.empty
+        cont      <- newIORef 1000
+        hmap      <- newIORef HM.empty
         lock      <- newEmptyMVar
         locki     <- newMVar ()
         errorChan <- newChan -- new Error Channel.
@@ -130,10 +131,10 @@ ccsWorker config requestChan callBackF = do
             buildAck regId id = buildMessage $ object [cTo .= regId , cMessageId .= id , cMessageType .= cAck]
 
             sender  :: Int32
-                    -> MVar Int
+                    -> IORef Int
                     -> MVar ()
                     -> MVar ()
-                    -> MVar (HM.HashMap Text (MVar GCMresult,RegId))
+                    -> IORef (HM.HashMap Text (MVar GCMresult,RegId))
                     -> TChan (MVar GCMresult , MVar (Chan ()), GCMmessage)
                     -> Chan ()
                     -> Session
@@ -161,23 +162,20 @@ ccsWorker config requestChan callBackF = do
                     let id     = pack $ show n
                         value  = fromGCMtoCCS x id msg
                               
-                    hashMap    <- takeMVar hmap
-                    let newMap = HM.insert id (var,x) hashMap
-                    putMVar hmap newMap
+                    atomicModifyIORef hmap (\hashMap -> (HM.insert id (var,x) hashMap,()))
                     
                     sendMessage (buildMessage value) sess
                               
                     loopSend xs msg var sess hmap cont lock (n+1)
 
-            checkCounter :: MVar Int -> MVar () -> IO ()
+            checkCounter :: IORef Int -> MVar () -> IO ()
             checkCounter cont lock = do
-                        c <- takeMVar cont
-                        putMVar cont (c-1)
-                        if (c-1) == 0
-                          then do
-                                 race (threadDelay 5000000 >> fail "Timeout") (takeMVar lock) -- blocks
-                                 return ()
-                          else return ()
+                    newC <- atomicModifyIORef cont (\c -> (c-1,c-1))
+                    if newC == 0
+                      then do
+                             race (threadDelay 5000000 >> fail "Timeout") (takeMVar lock) -- blocks
+                             return ()
+                      else return ()
 
             controlPars :: Value -> Parser (Text,Text,Text,Maybe Text)
             controlPars (Object v) = (,,,) <$>
@@ -194,9 +192,9 @@ ccsWorker config requestChan callBackF = do
                               v .: cFrom
             msgPars _          = mzero
 
-            receiver :: MVar Int
+            receiver :: IORef Int
                      -> MVar ()
-                     -> MVar (HM.HashMap Text (MVar GCMresult,RegId))
+                     -> IORef (HM.HashMap Text (MVar GCMresult,RegId))
                      -> Session
                      -> IO Int
             receiver cont lock hmap sess = do
@@ -217,22 +215,22 @@ ccsWorker config requestChan callBackF = do
                                                                  return ()
                         Just (id,f,t,e) -> do -- it is an ACK/NACK message so I look for the MVar of this message 
                                               -- in the hashmap and I put the response in the MVar.
-                                              c <- takeMVar cont
-                                              if c == 0
+                                                                                            
+                                              oldC <- atomicModifyIORef cont (\c -> (c+1,c))
+                                              
+                                              if oldC == 0
                                                 then putMVar lock () -- unblock the sender thread
                                                 else return ()
-                                              putMVar cont (c+1)
-
-                                              hashMap <- readMVar hmap
+                                              
+                                              hashMap <- readIORef hmap
                                               
                                               case HM.lookup id hashMap of
                                                 Just (var,regId) -> do
                                                   let result = getRes t e regId
                                                   tryPutMVar var result
                                                 Nothing -> return True
-                                              hashMap' <- takeMVar hmap
-                                              let newMap = HM.delete id hashMap'
-                                              putMVar hmap newMap
+                                              
+                                              atomicModifyIORef hmap (\hashMap -> (HM.delete id hashMap,()))
 
                     receiver cont lock hmap sess
                       where 
@@ -263,7 +261,7 @@ sendCCS man msg = do
           varErr    <- newEmptyMVar
           atomically $ writeTChan requestChan (varRes,varErr,msg)
           errorChan <- takeMVar varErr
-          v    <- race (readChan errorChan) (loopResponse varRes)
+          v         <- race (readChan errorChan) (loopResponse varRes)
           case v of
               Left _  -> return def{ failure = Just (Data.List.length $ registration_ids msg)
                                    , errorToReSend = (registration_ids msg)} -- Error while sending.
