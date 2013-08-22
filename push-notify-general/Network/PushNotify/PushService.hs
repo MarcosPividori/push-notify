@@ -56,11 +56,11 @@ startPushService pConfig = do
                                                       m <- startAPNS cnf
                                                       return (Just m)
                                       Nothing  -> return Nothing
-                       ccsMan  <- case gcmAppConfig cnfg of
-                                      Just cnf -> do
-                                                      m <- startCCS cnf (\d -> (newMessageCallback pConfig) (GCM d))
-                                                      return (Just m)
-                                      Nothing  -> return Nothing
+                       ccsMan  <- case (gcmAppConfig cnfg,useCCS cnfg) of
+                                      (Just cnf,True) -> do
+                                                           m <- startCCS cnf (\d -> (newMessageCallback pConfig) (GCM d))
+                                                           return (Just m)
+                                      _               -> return Nothing
                        return ( PushManager httpMan apnsMan ccsMan pConfig
                               , PushAppSub (newMessageCallback pConfig) (newDeviceCallback pConfig))
 

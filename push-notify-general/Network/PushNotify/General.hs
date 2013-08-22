@@ -28,21 +28,21 @@ data Device =   GCM  RegId
 data PushNotification = PushNotification {
         apnsNotif :: Maybe APNSmessage
     ,   gcmNotif  :: Maybe GCMmessage
-    ,   mpnsNotif :: Maybe MPNSmessage    
+    ,   mpnsNotif :: Maybe MPNSmessage
     } deriving Show
 
 instance Default PushNotification where
     def = PushNotification Nothing Nothing Nothing
 
-
 data PushAppConfig = PushAppConfig{
         gcmAppConfig  :: Maybe GCMAppConfig
     ,   apnsAppConfig :: Maybe APNSAppConfig
     ,   mpnsAppConfig :: Maybe MPNSAppConfig
+    ,   useCCS        :: Bool
     }
 
 instance Default PushAppConfig where
-    def = PushAppConfig Nothing Nothing Nothing
+    def = PushAppConfig Nothing Nothing Nothing True
 
 
 data PushResult = PushResult {
