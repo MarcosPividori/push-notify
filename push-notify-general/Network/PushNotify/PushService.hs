@@ -16,6 +16,7 @@ import Yesod
 import Data.Aeson
 import Data.Text                        (Text)
 import Data.Monoid
+import Data.Default
 import Control.Concurrent
 import Control.Monad
 import Network.HTTP.Conduit
@@ -36,6 +37,15 @@ data PushServiceConfig = PushServiceConfig {
     ,   newIdCallback        :: (Device,Device) -> IO ()     -- The callback function to be called when a device identifier changes.
     }
 
+instance Default PushServiceConfig where
+    def = PushServiceConfig {
+        pushConfig           = def
+    ,   newMessageCallback   = \_ _ -> return ()
+    ,   newDeviceCallback    = \_ _ -> return SuccessfulReg
+    ,   unRegisteredCallback = \_ -> return ()
+    ,   newIdCallback        = \_ -> return ()
+    }
+
 data PushManager = PushManager {
         httpManager    :: Maybe Manager       -- Conduit manager for sending push notifications though POST requests.
     ,   apnsManager    :: Maybe APNSManager   -- Apns manager for sending push notifications though APNS servers.
@@ -49,18 +59,18 @@ startPushService pConfig = do
                        httpMan <- case (gcmAppConfig cnfg , mpnsAppConfig cnfg) of
                                       (Nothing,Nothing) -> return Nothing
                                       _                 -> do
-                                                               m <- newManager def
-                                                               return (Just m)
+                                                             m <- newManager def
+                                                             return (Just m)
                        apnsMan <- case apnsAppConfig cnfg of
-                                      Just cnf -> do
-                                                      m <- startAPNS cnf
-                                                      return (Just m)
-                                      Nothing  -> return Nothing
+                                      Just cnf          -> do
+                                                             m <- startAPNS cnf
+                                                             return (Just m)
+                                      Nothing           -> return Nothing
                        ccsMan  <- case (gcmAppConfig cnfg,useCCS cnfg) of
-                                      (Just cnf,True) -> do
-                                                           m <- startCCS cnf (\d -> (newMessageCallback pConfig) (GCM d))
-                                                           return (Just m)
-                                      _               -> return Nothing
+                                      (Just cnf,True)   -> do
+                                                             m <- startCCS cnf (\d -> (newMessageCallback pConfig) (GCM d))
+                                                             return (Just m)
+                                      _                 -> return Nothing
                        return ( PushManager httpMan apnsMan ccsMan pConfig
                               , PushAppSub (newMessageCallback pConfig) (newDeviceCallback pConfig))
 
@@ -100,25 +110,25 @@ sendPush man notif devices = do
                     config      = pushConfig pConfig
 
                 r1 <- case (gcmDevices , gcmAppConfig config , gcmNotif  notif , httpManager man,ccsManager man) of
-                          (_:_,Just cnf,Just msg,_,Just m) -> do
-                                                               res <- sendCCS m msg{registration_ids = gcmDevices}
-                                                               return $ toPushResult res
+                          (_:_,Just cnf,Just msg,_,Just m)  -> do
+                                                                 res <- sendCCS m msg{registration_ids = gcmDevices}
+                                                                 return $ toPushResult res
                           (_:_,Just cnf,Just msg,Just m,_ ) -> do
-                                                               res <- sendGCM m cnf msg{registration_ids = gcmDevices}
-                                                               return $ toPushResult res
+                                                                 res <- sendGCM m cnf msg{registration_ids = gcmDevices}
+                                                                 return $ toPushResult res
                           _                                 -> return def
 
                 r2 <- case (apnsDevices , apnsNotif notif , apnsManager man) of
-                          (_:_,Just msg,Just m) -> do
-                                                       res <- sendAPNS m msg{deviceTokens = apnsDevices}
-                                                       return $ toPushResult res
-                          _                     -> return def
+                          (_:_,Just msg,Just m)             -> do
+                                                                 res <- sendAPNS m msg{deviceTokens = apnsDevices}
+                                                                 return $ toPushResult res
+                          _                                 -> return def
 
                 r3 <- case (mpnsDevices , mpnsAppConfig config , mpnsNotif notif , httpManager man) of
-                          (_:_,Just cnf,Just msg,Just m) -> do
-                                                               res <- sendMPNS m cnf msg{deviceURIs = mpnsDevices}
-                                                               return $ toPushResult res
-                          _                              -> return def
+                          (_:_,Just cnf,Just msg,Just m)    -> do
+                                                                 res <- sendMPNS m cnf msg{deviceURIs = mpnsDevices}
+                                                                 return $ toPushResult res
+                          _                                 -> return def
 
                 let res = r1 <> r2 <> r3
 
