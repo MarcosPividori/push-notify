@@ -7,6 +7,7 @@ import Data.Default
 import qualified Data.HashMap.Strict  as HM
 import Data.Aeson
 import Data.Text
+import Control.Concurrent
 
 main :: IO ()
 main = do
@@ -20,4 +21,5 @@ main = do
                        registration_ids = ["Here the regId of a device."]
                      , data_object = Just (HM.fromList [(pack "Message" .= pack "hola")]) -- Example of JSON data.
                      }
+         threadDelay 20000000
          closeCCS man
