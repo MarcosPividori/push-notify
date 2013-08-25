@@ -98,10 +98,10 @@ ifNotDef label f msg = if f def /= f msg
 
 instance ToJSON GCMmessage where
     toJSON msg = object $ execWriter $ do
-                                        ifNotDef cREGISTRATION_IDS registration_ids msg
-                                        ifNotDef cTIME_TO_LIVE time_to_live msg
-                                        ifNotDef cDATA data_object msg
-                                        ifNotDef cCOLLAPSE_KEY collapse_key msg
-                                        ifNotDef cRESTRICTED_PACKAGE_NAME restricted_package_name msg
-                                        ifNotDef cDELAY_WHILE_IDLE delay_while_idle msg
-                                        ifNotDef cDRY_RUN dry_run msg
+                                         ifNotDef cREGISTRATION_IDS registration_ids msg
+                                         ifNotDef cTIME_TO_LIVE time_to_live msg
+                                         ifNotDef cDATA data_object msg
+                                         ifNotDef cCOLLAPSE_KEY collapse_key msg
+                                         ifNotDef cRESTRICTED_PACKAGE_NAME restricted_package_name msg
+                                         ifNotDef cDELAY_WHILE_IDLE delay_while_idle msg
+                                         ifNotDef cDRY_RUN dry_run msg

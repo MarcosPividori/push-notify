@@ -168,7 +168,7 @@ apnsWorker config requestChan = do
             receiver :: Context -> IO Int
             receiver c = do
                     dat <- recvData c
-                    case runGet (getWord16be >> getWord32be) dat of -- | COMMAND and STATUS | ID |
+                    case runGet (getWord16be >> getWord32be) dat of -- COMMAND and STATUS | ID |
                         Right ident -> return (convert ident)
                         Left _      -> return 0
 
@@ -197,7 +197,7 @@ createPut msg ctime dst identifier = do
                       Just t  ->  round (utcTimeToPOSIXSeconds t)
    if (LB.length bpayload > 256)
       then fail "Too long payload"
-      else do -- |COMMAND|ID|EXPIRY|TOKENLEN|TOKEN|PAYLOADLEN|PAYLOAD|
+      else do -- COMMAND|ID|EXPIRY|TOKENLEN|TOKEN|PAYLOADLEN|PAYLOAD|
             putWord8 1
             putWord32be $ convert identifier
             putWord32be expiryTime
@@ -239,7 +239,7 @@ feedBackAPNS config = do
 
         where
             getData :: Get (DeviceToken,UTCTime)
-            getData = do -- |TIMESTAMP|TOKENLEN|TOKEN|
+            getData = do -- TIMESTAMP|TOKENLEN|TOKEN|
                         time    <- getWord32be
                         length  <- getWord16be
                         dtoken  <- getBytes $ convert length
