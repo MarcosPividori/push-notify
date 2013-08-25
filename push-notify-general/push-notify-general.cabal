@@ -13,10 +13,11 @@ build-type:          Simple
 cabal-version:       >=1.8
 
 library
-  exposed-modules:   Network.PushNotify.YesodPushAppRoutes,
-                     Network.PushNotify.PushService,
-                     Network.PushNotify.YesodPushApp,
-                     Network.PushNotify.General
+  exposed-modules:   Network.PushNotify.General,
+                     Network.PushNotify.General.Send,
+                     Network.PushNotify.General.Types,
+                     Network.PushNotify.General.YesodPushApp,
+                     Network.PushNotify.General.YesodPushAppRoutes
 
   build-depends:     base ==4.5.*,
                      yesod ==1.2.*,

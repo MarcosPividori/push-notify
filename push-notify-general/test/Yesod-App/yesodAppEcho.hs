@@ -23,11 +23,10 @@ import Control.Monad                  (mzero)
 import Control.Monad.Trans.Resource   (runResourceT)
 import Control.Monad.IO.Class         (liftIO)
 import Control.Monad.Logger
-import Network.PushNotify.Gcm.Types
-import Network.PushNotify.Apns.Types
-import Network.PushNotify.Mpns.Types
+import Network.PushNotify.Gcm
+import Network.PushNotify.Apns
+import Network.PushNotify.Mpns
 import Network.PushNotify.General
-import Network.PushNotify.PushService
 import Extra
 
 -- Data Base:
