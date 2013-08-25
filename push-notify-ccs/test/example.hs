@@ -3,7 +3,7 @@
              QuasiQuotes, MultiParamTypeClasses, GeneralizedNewtypeDeriving, FlexibleContexts, GADTs #-}
 
 import Send
-import Network.PushNotify.Gcm.Types
+import Network.PushNotify.Gcm
 import Data.Default
 
 main :: IO ()

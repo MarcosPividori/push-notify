@@ -6,9 +6,7 @@ module Network.PushNotify.Ccs.Types
     , fromGCMtoCCS
     ) where
 
-import Network.PushNotify.Gcm.Constants
-import Network.PushNotify.Gcm.Types
-
+import Network.PushNotify.Gcm
 import Network.PushNotify.Ccs.Constants
 
 import Control.Concurrent
@@ -20,12 +18,17 @@ import Data.Aeson.Types
 import Data.Text
 import qualified Data.HashMap.Strict    as HM
 
+-- | Manager of a CCS Connection.
 data CCSManager = CCSManager
     {   mState      :: IORef (Maybe ())
+    -- ^ @Nothing@ indicates that the manager is closed.
     ,   mCcsChannel :: TChan (MVar GCMresult , MVar (Chan ()), GCMmessage)
+    -- ^ Channel to communicate with the worker thread.
     ,   mWorkerID   :: ThreadId
+    -- ^ Worker thread ID.
     }
 
+-- 'fromGCMtoCCS' converts a Gcm message to a proper CCS message.
 fromGCMtoCCS :: RegId -> Text -> GCMmessage -> Value
 fromGCMtoCCS regId identif msg =
         let Object hmap = toJSON msg

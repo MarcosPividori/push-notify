@@ -12,6 +12,9 @@ cCCS_URL = "gcm.googleapis.com"
 cCCS_PORT :: Integer
 cCCS_PORT = 5235
 
+cREGISTRATION_IDS :: Text
+cREGISTRATION_IDS = "registration_ids"
+
 cMessageId :: Text
 cMessageId = "message_id"
 

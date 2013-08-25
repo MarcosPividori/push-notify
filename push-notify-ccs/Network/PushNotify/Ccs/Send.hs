@@ -4,6 +4,7 @@
              QuasiQuotes, MultiParamTypeClasses, GeneralizedNewtypeDeriving, FlexibleContexts, GADTs , ScopedTypeVariables #-}
 
 -- | This Module define the main function to send Push Notifications through Cloud Connection Server (GCM).
+
 module Network.PushNotify.Ccs.Send
     ( startCCS
     , closeCCS
@@ -82,8 +83,10 @@ connectCCS config = do
         Right s -> return s
         Left e  -> fail $ "XmppFailure: " ++ (show e)
 
--- | 'startCCS' starts the CCS service.
-startCCS :: GCMAppConfig -> (RegId -> Value -> IO ()) -> IO CCSManager
+-- | 'startCCS' starts the CCS service. Which means starting a worker thread which maintains a connection with CCS servers.
+startCCS :: GCMAppConfig                 -- ^ The main configuration for the GCM service.
+         -> (RegId -> Value -> IO ())    -- ^ A callback function to be called each time a message arrives from a device.
+         -> IO CCSManager
 startCCS config newMessageCallbackFunction = do
         c      <- newTChanIO
         ref    <- newIORef $ Just ()
@@ -244,12 +247,18 @@ ccsWorker config requestChan callBackF = do
 
 
 -- | 'closeCCS' stops the CCS service.
+--
+-- This means stopping the worker thread which maintains a connection with CCS servers.
 closeCCS :: CCSManager -> IO ()
 closeCCS m = do
                atomicModifyIORef (mState m) (\_ -> (Nothing,()))
                killThread $ mWorkerID m
 
 -- | 'sendCCS' sends the message through a CCS Server.
+--
+-- Every time you call this function, it will put the notification in a channel waiting to be proceesed by the worker thread.
+--
+-- It will block until the worker thread receives a response from CCS server.
 sendCCS :: CCSManager -> GCMmessage -> IO GCMresult
 sendCCS man msg = do
     s <- readIORef $ mState man

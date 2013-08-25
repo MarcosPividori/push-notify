@@ -13,8 +13,10 @@ build-type:          Simple
 cabal-version:       >=1.8
 
 library
-  exposed-modules:   Network.PushNotify.Ccs.Send,
-                     Network.PushNotify.Ccs.Constants,
+  exposed-modules:   Network.PushNotify.Ccs,
+                     Network.PushNotify.Ccs.Send
+
+  other-modules:     Network.PushNotify.Ccs.Constants,
                      Network.PushNotify.Ccs.Types
   
   build-depends:     base ==4.5.*,
