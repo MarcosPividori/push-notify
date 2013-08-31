@@ -4,7 +4,7 @@ module DataBase where
 
 import Yesod
 import Data.Text
-import PushNotify.General
+import Network.PushNotify.General
 import Extra
 import Connect4
 

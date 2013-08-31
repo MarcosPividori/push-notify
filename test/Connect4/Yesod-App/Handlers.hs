@@ -18,8 +18,8 @@ import Control.Applicative
 import Control.Monad                  (mzero)
 import Control.Monad.Logger
 import Control.Monad.Trans.Resource   (runResourceT)
-import PushNotify.Gcm
-import PushNotify.General
+import Network.PushNotify.Gcm
+import Network.PushNotify.General
 import Connect4
 import DataBase
 
