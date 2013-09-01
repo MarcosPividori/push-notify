@@ -1,0 +1,17 @@
+body {
+    margin: 0 auto;
+}
+
+.row
+{
+    width:600px;
+    height:75px;
+}
+
+.celd
+{
+    float: left;
+    width:75px;
+    height:75px;
+}
+

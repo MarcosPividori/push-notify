@@ -5,6 +5,8 @@ module Handlers
     , handleUnregistered
     , handleNewMessage
     , handleNewDevice
+    , MsgFromDevice(..)
+    , handleMessage
     ) where
 
 import Database.Persist.Sqlite
@@ -22,8 +24,9 @@ import Network.PushNotify.Gcm
 import Network.PushNotify.General
 import Connect4
 import DataBase
+import Extra
 
-data MsgFromDevice = Cancel | Movement Int | NewGame Text | Winner Text
+data MsgFromDevice = Cancel | Movement Int | NewGame Text | Winner Text deriving (Show,Read,Eq)
 
 pars :: Value -> Parser (Text,Text)
 pars (Object v) = (,) <$>
@@ -64,29 +67,29 @@ handleNewDevice pool d v = do
        device <- runDBAct pool $ getBy $ UniqueUser usr
        case device of
          Nothing -> do
-                      dev <- runDBAct pool $ getBy $ UniqueDevice d
+                      dev <- runDBAct pool $ getBy $ UniqueDevice $ Dev d
                       case dev of
                         Just x  -> do 
                                      runDBAct pool $ update (entityKey (x)) [DevicesUser =. usr , DevicesPassword =. pass]
                                      return SuccessfulReg
                         Nothing -> do
-                                     runDBAct pool $ insert $ Devices usr pass d
+                                     runDBAct pool $ insert $ Devices usr pass $ Dev d
                                      return SuccessfulReg
          Just a	-> case devicesPassword (entityVal (a)) == pass of
                       True  -> do
-                                 runDBAct pool $ update (entityKey (a)) [DevicesIdentifier =. d]
+                                 runDBAct pool $ update (entityKey (a)) [DevicesIdentifier =. Dev d]
                                  return SuccessfulReg
                       False -> return $ ErrorReg "Invalid Username or Password"
 
 handleNewId :: Pool Connection -> (Device, Device) -> IO ()
 handleNewId pool (old,new) = do
-                               dev  <- runDBAct pool $ getBy $ UniqueDevice old
+                               dev  <- runDBAct pool $ getBy $ UniqueDevice $ Dev old
                                case dev of
-                                   Just x  ->  runDBAct pool $ update (entityKey (x)) [DevicesIdentifier =. new ]
+                                   Just x  ->  runDBAct pool $ update (entityKey (x)) [DevicesIdentifier =. Dev new ]
                                    Nothing ->  return ()
 
 handleUnregistered :: Pool Connection -> Device -> IO ()
-handleUnregistered pool d = runDBAct pool $ deleteBy $ UniqueDevice d
+handleUnregistered pool d = runDBAct pool $ deleteBy $ UniqueDevice $ Dev d
 
 handleNewMessage :: Pool Connection -> IORef (Maybe PushManager) -> Device -> Value -> IO ()
 handleNewMessage pool ref d v = do
@@ -99,52 +102,70 @@ handleNewMessage pool ref d v = do
                    m  <- return $ parseMaybe parsMsg v
                    case m of 
                      Nothing -> return ()
-                     Just m2 -> case m2 of
+                     Just m2 -> handleMessage pool man (Dev d) usr m2
+   where
+       authenticate Nothing           = return Nothing
+       authenticate (Just (usr,pass)) = do
+                                           device <- runDBAct pool $ getBy $ UniqueUser usr
+                                           case device of
+                                             Nothing -> return Nothing
+                                             Just a	 -> case devicesPassword (entityVal (a)) == pass of
+                                                           False -> return Nothing
+                                                           True  -> return $ Just usr
+                     
+handleMessage :: Pool Connection -> PushManager -> Identifier -> Text -> MsgFromDevice -> IO ()
+handleMessage pool man id1 user1 msg = do
+                 case msg of
                       Cancel       -> do--Cancel
-                                        user2 <- getOpponentId usr
-                                        sendPush man (setMessage Cancel) user2
-                                        runDBAct pool $ deleteBy $ UniqueUser1 usr
-                                        runDBAct pool $ deleteBy $ UniqueUser2 usr
+                                        mId2 <- getOpponentId user1
+                                        case mId2 of
+                                          Just (id2,_) -> sendMessage (setMessage Cancel) id2
+                                          _            -> return ()
+                                        deleteGame user1
 
                       Movement mov -> do--New Movement
-                                        user2 <- getOpponentId usr
-                                        game  <- getGame usr
-                                        case (user2,game) of
-                                          ([],_)      -> sendPush man (setMessage Cancel) [d] >> return ()
-                                          (_,Nothing) -> sendPush man (setMessage Cancel) [d] >> return ()
-                                          (_,Just g)  -> do                                                              
-                                                  sendPush man (setMessage $ Movement mov) user2
-                                                  let newBoard = if gamesUser1 (entityVal g) == usr
+                                        mId2 <- getOpponentId user1
+                                        game <- getGame user1
+                                        case (mId2,game) of
+                                          (Nothing,_)       -> sendMessage (setMessage Cancel) id1
+                                          (_,Nothing)       -> sendMessage (setMessage Cancel) id1
+                                          (Just (id2,user2),Just g) -> do
+                                              if gamesTurn (entityVal g) /= user1
+                                                then return ()
+                                                else do                                                    
+                                                  sendMessage (setMessage $ Movement mov) id2
+                                                  let newBoard = if gamesUser1 (entityVal g) == user1
                                                                   then newMovement mov 1 (gamesMatrix(entityVal g))
                                                                   else newMovement mov (-1) (gamesMatrix(entityVal g))
                                                   case checkWinner newBoard of
-                                                    Nothing -> runDBAct pool $ update (entityKey (g)) [GamesMatrix =. newBoard]
+                                                    Nothing -> runDBAct pool $ update (entityKey (g)) [GamesMatrix =. newBoard, GamesTurn =. user2]
                                                     Just x  -> do
                                                                  let msg = if x == 1 
                                                                              then Winner $ gamesUser1 (entityVal g)
                                                                              else Winner $ gamesUser2 (entityVal g)
-                                                                 sendPush man (setMessage $ msg) (d:user2)
-                                                                 runDBAct pool $ deleteBy $ UniqueUser1 usr
-                                                                 runDBAct pool $ deleteBy $ UniqueUser2 usr
+                                                                 sendMessage (setMessage $ msg) id1
+                                                                 sendMessage (setMessage $ msg) id2
+                                                                 deleteGame user1
                                                   return ()
 
-                      NewGame usr2 -> do--New Game
-                                        res <- runDBAct pool $ getBy $ UniqueUser usr2
-                                        case res of
-                                          Nothing -> do
-                                                       sendPush man (setMessage Cancel) [d]
+                      NewGame user2 -> do--New Game
+                                        res1 <- runDBAct pool $ getBy $ UniqueUser user2
+                                        res2 <- isPlaying user2
+                                        case (res1,res2) of
+                                          (Just a,False) -> do
+                                                       sendMessage (setMessage $ NewGame user1) $ devicesIdentifier (entityVal a)
+                                                       runDBAct pool $ insert $ Games user1 user2 user2 emptyBoard
                                                        return ()
-                                          Just a  -> do
-                                                       res <- isPlaying usr2
-                                                       case res of
-                                                         True  -> sendPush man (setMessage Cancel) [d] >> return ()
-                                                         False -> do
-                                                                    sendPush man (setMessage $ NewGame usr) 
-                                                                                 [devicesIdentifier (entityVal a)]
-                                                                    runDBAct pool $ insert $ Games usr usr2 emptyBoard
-                                                                    return ()
+                                          (_,_) -> sendMessage (setMessage Cancel) id1
                       _ -> return ()
-   where
+    where
+        sendMessage msg id = case id of
+                             Web _ -> return ()
+                             Dev d -> sendPush man msg [d] >> return ()
+        
+        deleteGame usr    = do
+                              runDBAct pool $ deleteBy $ UniqueUser1 usr
+                              runDBAct pool $ deleteBy $ UniqueUser2 usr
         getGame usr       = do
                               game1 <- runDBAct pool $ getBy $ UniqueUser1 usr
                               case game1 of
@@ -157,27 +178,18 @@ handleNewMessage pool ref d v = do
                                 (Just g , _) -> do
                                                   res <- runDBAct pool $ getBy $ UniqueUser (gamesUser2 (entityVal g))
                                                   case res of
-                                                    Just a -> return [devicesIdentifier (entityVal a)]
-                                                    _      -> return []
+                                                    Just a -> return $ Just (devicesIdentifier (entityVal a),devicesUser (entityVal a))
+                                                    _      -> return Nothing
                                 (_ , Just g) -> do
                                                   res <- runDBAct pool $ getBy $ UniqueUser (gamesUser1 (entityVal g))
                                                   case res of
-                                                    Just a -> return [devicesIdentifier (entityVal a)]
-                                                    _      -> return []
-                                _            -> return []
+                                                    Just a -> return $ Just (devicesIdentifier (entityVal a),devicesUser (entityVal a))
+                                                    _      -> return Nothing
+                                _            -> return Nothing
         isPlaying usr     = do
                               game1 <- runDBAct pool $ getBy $ UniqueUser1 usr
                               game2 <- runDBAct pool $ getBy $ UniqueUser2 usr
                               case (game1,game2) of
                                 (Nothing,Nothing) -> return False
                                 _                 -> return True
-
-        authenticate Nothing           = return Nothing
-        authenticate (Just (usr,pass)) = do
-                                           device <- runDBAct pool $ getBy $ UniqueUser usr
-                                           case device of
-                                             Nothing -> return Nothing
-                                             Just a	 -> case devicesPassword (entityVal (a)) == pass of
-                                                           False -> return Nothing
-                                                           True  -> return $ Just usr
 

@@ -1,0 +1,20 @@
+<meta http-equiv="refresh" content="5" >
+$maybe _ <- maid
+ <p> <b>Your current auth ID:</b> #{show maid} <a href=@{AuthR LogoutR}>Logout</a>
+ <p> <b>Playing against:</b> #{show user2}
+ <p> <b>Turn:</b> #{show turn}
+ <p> <a href=@{FromWebR Cancel}>Finish
+  $forall row <- rows
+   <div class="row" id=#{show row}>
+    $forall celd <- row  
+      <div class="celd" name=#{fst celd}>
+        <a href=@{FromWebR (Movement $ fst celd)}>
+           $if snd celd == 1
+              <img src=@{StaticR red_png} height="75px" width="75px">
+           $elseif snd celd == minusone
+              <img src=@{StaticR yellow_png} height="75px" width="75px">
+           $else
+              <img src=@{StaticR empty_png} #updategrid height="75px" width="75px">
+$nothing
+    <p>
+        <a href=@{AuthR LoginR}>Go to the login page
