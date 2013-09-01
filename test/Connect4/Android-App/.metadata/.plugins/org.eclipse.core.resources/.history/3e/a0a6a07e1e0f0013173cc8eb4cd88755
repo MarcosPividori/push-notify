@@ -1,0 +1,56 @@
+package com.example.gsoc_example_connect4;
+
+public class Board {
+	
+	final private Integer[] newGame = {
+            R.drawable.empty , R.drawable.empty, R.drawable.empty , R.drawable.empty ,
+            R.drawable.empty , R.drawable.empty, R.drawable.empty , R.drawable.empty ,
+            R.drawable.empty , R.drawable.empty, R.drawable.empty , R.drawable.empty ,
+            R.drawable.empty , R.drawable.empty, R.drawable.empty , R.drawable.empty ,
+            R.drawable.empty , R.drawable.empty, R.drawable.empty , R.drawable.empty ,
+            R.drawable.empty , R.drawable.empty, R.drawable.empty , R.drawable.empty ,
+            R.drawable.empty , R.drawable.empty, R.drawable.empty , R.drawable.empty ,
+            R.drawable.empty , R.drawable.empty, R.drawable.empty , R.drawable.empty ,
+            R.drawable.empty , R.drawable.empty, R.drawable.empty , R.drawable.empty ,
+            R.drawable.empty , R.drawable.empty, R.drawable.empty , R.drawable.empty ,
+            R.drawable.empty , R.drawable.empty
+    };
+	
+	private Integer[] positions = newGame;
+	
+	public int getPosition(int pos){
+    	return positions[pos];
+    }
+	
+	public void setNewGame(){
+		positions = newGame;
+	}
+	
+	private void setPosition(int pos,int player){
+		int color;
+		if (player == 1)
+			color= R.drawable.red;
+		else{
+			if (player == 2)
+				color= R.drawable.yellow;
+			else
+				return ;
+		}
+		positions[pos] = color;
+    }
+	
+	public void newMovement(int column,int player){//column
+		if(column > 6 || column <0)
+			return ;
+		for(int i=column;i<42;i+=7){
+			if(i<35){
+				if(positions[i+7]!=R.drawable.empty){
+					setPosition(i,player);
+					break;
+				}}
+			else
+				
+		}
+		
+	}
+}

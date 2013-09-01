@@ -1,0 +1,4 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<session version="1.0">
+<refactoring comment="Rename package &apos;com.example.gsoc_example&apos; to &apos;com.example.gsoc_example_BackAndForth&apos;&#x0A;- Original project: &apos;GSoC-Example-BackAndForth&apos;&#x0A;- Original element: &apos;GSoC-Example-BackAndForth/src/com.example.gsoc_example&apos;&#x0A;- Renamed element: &apos;GSoC-Example-BackAndForth/src/com.example.gsoc_example_BackAndForth&apos;&#x0A;- Update references to refactored element&#x0A;- Update textual occurrences in comments and strings" description="Rename package &apos;com.example.gsoc_example&apos;" flags="589830" hierarchical="false" id="org.eclipse.jdt.ui.rename.package" input="/src&lt;com.example.gsoc_example" name="com.example.gsoc_example_BackAndForth" qualified="false" references="true" stamp="1375886718108" textual="false" version="1.0"/>
+</session>

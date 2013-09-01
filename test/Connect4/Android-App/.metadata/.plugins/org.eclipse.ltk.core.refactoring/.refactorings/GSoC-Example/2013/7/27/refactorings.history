@@ -1,0 +1,4 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<session version="1.0">
+<refactoring accessors="true" comment="Delete element from project &apos;GSoC-Example&apos;&#x0A;- Original project: &apos;GSoC-Example&apos;&#x0A;- Original element: &apos;main.xml&apos;" description="Delete element" element1="res/menu/main.xml" elements="0" flags="589830" id="org.eclipse.jdt.ui.delete" resources="1" stamp="1372694178295" subPackages="false" version="1.0"/>
+</session>

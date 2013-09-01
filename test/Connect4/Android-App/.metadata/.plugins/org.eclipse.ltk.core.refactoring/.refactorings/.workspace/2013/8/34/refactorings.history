@@ -1,0 +1,4 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<session version="1.0">
+<refactoring comment="Delete resource &apos;GSoC-Example&apos;" deleteContents="false" description="Delete resource &apos;GSoC-Example&apos;" element1="/GSoC-Example" flags="7" id="org.eclipse.ltk.core.refactoring.delete.resources" resources="1" stamp="1377081449220"/>
+</session>

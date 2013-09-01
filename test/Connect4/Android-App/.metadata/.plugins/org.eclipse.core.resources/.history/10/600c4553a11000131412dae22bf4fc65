@@ -1,0 +1,32 @@
+package com.example.gsoc_example_connect4;
+
+import android.content.Context;
+import android.content.Intent;
+
+//This class provide some common methods and constants.
+public final class CommonUtilities {
+	
+	//The server url, the device will send its regId and user information to this.
+	static final String SERVER_URL = "http://192.168.0.52:3000";
+	
+	//Google API project id registered.
+    static final String SENDER_ID = "1006878353850";// You must complete with Project ID
+
+    //Intent used for showing messages on the screen.
+    static final String DISPLAY_MESSAGE_ACTION =
+            "com.example.gsoc_example_connect4.DISPLAY_MESSAGE";
+    
+    //Intent's extra which contains the new movement.
+    static final String EXTRA_MOVEMENT = "Movement";
+    
+    //Intent's extra which contains the new movement.
+    static final String EXTRA_CANCEL = "Cancel";
+    
+    //This method lets show a message in the main console.
+    static void displayMessage(Context context, String message) {
+        Intent intent = new Intent(DISPLAY_MESSAGE_ACTION);
+        intent.putExtra(EXTRA_MESSAGE, message);
+        context.sendBroadcast(intent);
+    }
+    
+}

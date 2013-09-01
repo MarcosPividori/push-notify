@@ -1,0 +1,33 @@
+package com.example.gsoc_example_connect4;
+
+public class Board {
+	
+	final private Integer[] newGame = {
+            R.drawable.empty , R.drawable.empty, R.drawable.empty , R.drawable.empty ,
+            R.drawable.empty , R.drawable.empty, R.drawable.empty , R.drawable.empty ,
+            R.drawable.empty , R.drawable.empty, R.drawable.empty , R.drawable.empty ,
+            R.drawable.empty , R.drawable.empty, R.drawable.empty , R.drawable.empty ,
+            R.drawable.empty , R.drawable.empty, R.drawable.empty , R.drawable.empty ,
+            R.drawable.empty , R.drawable.empty, R.drawable.empty , R.drawable.empty ,
+            R.drawable.empty , R.drawable.empty, R.drawable.empty , R.drawable.empty ,
+            R.drawable.empty , R.drawable.empty, R.drawable.empty , R.drawable.empty ,
+            R.drawable.empty , R.drawable.empty, R.drawable.empty , R.drawable.empty ,
+            R.drawable.empty , R.drawable.empty, R.drawable.empty , R.drawable.empty ,
+            R.drawable.empty , R.drawable.empty
+    };
+	
+	private Integer[] positions = newGame;
+	
+	public int getPosition(int pos){
+    	return positions[pos];
+    }
+	
+	public void setNewGame(){
+		positions = newGame;
+	}
+	
+	public int setPosition(int pos){
+    	return positions[pos];
+    }
+
+}
