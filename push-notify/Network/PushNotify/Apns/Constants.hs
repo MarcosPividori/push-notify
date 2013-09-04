@@ -1,4 +1,5 @@
 -- GSoC 2013 - Communicating with mobile devices.
+
 {-# LANGUAGE OverloadedStrings #-}
 
 -- | This Module define the main contants for sending Push Notifications through Apple Push Notification Service.
@@ -7,14 +8,26 @@ module Network.PushNotify.Apns.Constants where
 
 import Data.Text
 
+cLOCAL_URL :: String
+cLOCAL_URL = "localhost"
+
+cLOCAL_PORT :: Integer
+cLOCAL_PORT = 2195
+
+cLOCAL_FEEDBACK_URL :: String
+cLOCAL_FEEDBACK_URL = "localhost"
+
+cLOCAL_FEEDBACK_PORT :: Integer
+cLOCAL_FEEDBACK_PORT = 2196
+
 cDEVELOPMENT_URL :: String
-cDEVELOPMENT_URL = "localhost"
+cDEVELOPMENT_URL = "gateway.sandbox.push.apple.com"
 
 cDEVELOPMENT_PORT :: Integer
 cDEVELOPMENT_PORT = 2195
 
 cDEVELOPMENT_FEEDBACK_URL :: String
-cDEVELOPMENT_FEEDBACK_URL = "localhost"
+cDEVELOPMENT_FEEDBACK_URL = "feedback.sandbox.push.apple.com"
 
 cDEVELOPMENT_FEEDBACK_PORT :: Integer
 cDEVELOPMENT_FEEDBACK_PORT = 2196

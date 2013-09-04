@@ -1,10 +1,9 @@
 -- GSoC 2013 - Communicating with mobile devices.
 
-{-# LANGUAGE OverloadedStrings, TypeFamilies, TemplateHaskell,
-             QuasiQuotes, MultiParamTypeClasses, GeneralizedNewtypeDeriving, FlexibleContexts, GADTs #-}
+{-# LANGUAGE OverloadedStrings #-}
 
--- | This Module define the main function to send Push Notifications through Apple Push Notification Service,
--- and to communicate with the Feedback Service.
+-- | This Module define the main functions to send Push Notifications through Apple Push Notification Service,
+-- and to communicate to the Feedback Service.
 module Network.PushNotify.Apns.Send
     ( sendAPNS
     , startAPNS
@@ -42,7 +41,7 @@ import System.Timeout
 
 
 connParams :: X509 -> PrivateKey -> Params
-connParams cert privateKey = defaultParamsClient{ 
+connParams cert privateKey = defaultParamsClient{
                      pConnectVersion    = TLS11
                    , pAllowedVersions   = [TLS10,TLS11,TLS12]
                    , pCiphers           = ciphersuite_all
@@ -50,10 +49,10 @@ connParams cert privateKey = defaultParamsClient{
                    , onCertificatesRecv = const $ return CertificateUsageAccept
                    , roleParams         = Client $ ClientParams{
                             clientWantSessionResume    = Nothing
-                        ,   clientUseMaxFragmentLength = Nothing
-                        ,   clientUseServerName        = Nothing
-                        ,   onCertificateRequest       = \x -> return [(cert , Just privateKey)]
-                        }
+                          , clientUseMaxFragmentLength = Nothing
+                          , clientUseServerName        = Nothing
+                          , onCertificateRequest       = \x -> return [(cert , Just privateKey)]
+                          }
                    }
 
 -- 'connectAPNS' starts a secure connection with APNS servers.
@@ -66,6 +65,8 @@ connectAPNS config = do
                                            $ PortNumber $ fromInteger cDEVELOPMENT_PORT
                     Production  -> connectTo cPRODUCTION_URL
                                            $ PortNumber $ fromInteger cPRODUCTION_PORT
+                    Local       -> connectTo cLOCAL_URL
+                                           $ PortNumber $ fromInteger cLOCAL_PORT
         rng     <- RNG.makeSystem
         ctx     <- contextNewOnHandle handle (connParams cert key) rng
         handshake ctx
@@ -86,13 +87,13 @@ closeAPNS m = do
                 atomicModifyIORef (mState m) (\_ -> (Nothing,()))
                 killThread $ mWorkerID m
 
--- | 'sendAPNS' sends the message through a APNS Server.
+-- | 'sendAPNS' sends the message to a APNS Server.
 sendAPNS :: APNSManager -> APNSmessage -> IO APNSresult
 sendAPNS m msg = do
     s <- readIORef $ mState m
     case s of
       Nothing -> fail "APNS Service closed."
-      Just () -> do     
+      Just () -> do
         let requestChan = mApnsChannel m
         var1 <- newEmptyMVar
 
@@ -110,7 +111,8 @@ sendAPNS m msg = do
                 Right _ -> (deviceTokens msg,[]) -- Successful.
         return $ APNSresult success fail
 
-apnsWorker :: APNSAppConfig -> TChan ( MVar (Maybe (Chan Int,Int)) , APNSmessage) -> IO ()
+-- 'apnsWorker' starts the main worker thread.
+apnsWorker :: APNSAppConfig -> TChan (MVar (Maybe (Chan Int,Int)) , APNSmessage) -> IO ()
 apnsWorker config requestChan = do
         ctx        <- connectAPNS config
         errorChan  <- newChan -- new Error Channel.
@@ -130,7 +132,7 @@ apnsWorker config requestChan = do
                             writeChan errorChan v -- v is an int representing: 
                                         -- 0 -> internal worker error.
                                         -- n -> the identifier received in an error msg.
-                                        --      This represent, the last message that was sent successfully.
+                                        --      This represent the last message that was successfully sent.
         CE.catch (contextClose ctx) (\e -> let _ = (e :: CE.SomeException) in return ())
         apnsWorker config requestChan -- restarts.
 
@@ -157,7 +159,7 @@ apnsWorker config requestChan = do
                     let len = convert $ length $ deviceTokens msg     -- len is the number of messages it will send.
                         num = if (n + len :: Int32) < 0 then 1 else n -- to avoid overflow.
                     echan       <- dupChan errorChan
-                    putMVar var $ Just (echan,convert num) -- Here, notifies that it is attending this request, 
+                    putMVar var $ Just (echan,convert num) -- Here, notifies that it is attending this request,
                                                            -- and provides a duplicated error channel.
                     putMVar lock ()
 
@@ -218,12 +220,14 @@ connectFeedBackAPNS config = do
                                            $ PortNumber $ fromInteger cDEVELOPMENT_FEEDBACK_PORT
                     Production  -> connectTo cPRODUCTION_FEEDBACK_URL
                                            $ PortNumber $ fromInteger cPRODUCTION_FEEDBACK_PORT
+                    Local       -> connectTo cLOCAL_FEEDBACK_URL
+                                           $ PortNumber $ fromInteger cLOCAL_FEEDBACK_PORT
         rng     <- RNG.makeSystem
         ctx     <- contextNewOnHandle handle (connParams cert key) rng
         handshake ctx
         return ctx
 
--- | 'feedBackAPNS' connects with the Feedback service.
+-- | 'feedBackAPNS' connects to the Feedback service.
 feedBackAPNS :: APNSAppConfig -> IO APNSFeedBackresult
 feedBackAPNS config = do
         ctx     <- connectFeedBackAPNS config
