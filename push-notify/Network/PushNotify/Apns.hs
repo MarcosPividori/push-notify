@@ -11,7 +11,7 @@ module Network.PushNotify.Apns
     , feedBackAPNS
     -- * APNS Settings
     , APNSAppConfig(..)
-    , APNSManager(..)
+    , APNSManager
     , DeviceToken
     , Env(..)
     -- * APNS Messages
