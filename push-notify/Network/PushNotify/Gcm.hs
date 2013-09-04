@@ -1,9 +1,9 @@
 -- GSoC 2013 - Communicating with mobile devices.
 
--- | This library defines an API for communicating with Android powered devices, sending Push Notifications through Google Cloud Messaging.
+-- | This library defines an API for communicating with Android powered devices, sending Push Notifications through Google Cloud Messaging (HTTP connection).
 
 module Network.PushNotify.Gcm
-    ( 
+    (
     -- * GCM Service
       sendGCM
     -- * GCM Settings

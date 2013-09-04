@@ -1,4 +1,5 @@
 -- GSoC 2013 - Communicating with mobile devices.
+
 {-# LANGUAGE OverloadedStrings #-}
 
 -- | This Module define the main contants for sending Push Notifications through Google Cloud Messaging.
