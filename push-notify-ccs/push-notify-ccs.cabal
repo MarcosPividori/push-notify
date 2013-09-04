@@ -1,8 +1,8 @@
 name:                push-notify-ccs
 version:             0.1.0.0
-synopsis:            A server-side library for sending push notifications through CCS (Google Cloud Messaging).
+synopsis:            A server-side library for sending/receiving push notifications through CCS (Google Cloud Messaging).
 
-homepage:            https://github.com/MarcosPividori/GSoC-Communicating-with-mobile-devices/tree/master/push-notify-ccs
+homepage:            http://gsoc2013cwithmobiledevices.blogspot.com.ar/
 license:             MIT
 license-file:        LICENSE
 author:              Marcos Pividori
@@ -13,27 +13,31 @@ build-type:          Simple
 cabal-version:       >=1.8
 
 library
-  exposed-modules:   Network.PushNotify.Ccs,
-                     Network.PushNotify.Ccs.Send
+  exposed-modules:   Network.PushNotify.Ccs
+                   , Network.PushNotify.Ccs.Send
 
-  other-modules:     Network.PushNotify.Ccs.Constants,
-                     Network.PushNotify.Ccs.Types
+  other-modules:     Network.PushNotify.Ccs.Constants
+                   , Network.PushNotify.Ccs.Types
   
   build-depends:     base                 >=4.5  && < 5
-                   , push-notify          >=0.1
-                   , async                >=2.0
-                   , stm                  >=2.3
                    , aeson                >=0.6
-                   , data-default         >=0.5
-                   , text                 >=0.11
-                   , xml-types            >=0.3
+                   , async                >=2.0
                    , attoparsec           >=0.10
-                   , unordered-containers >=0.2
                    , bytestring           >=0.9
-                   , network              >=2.4
-                   , pontarius-xmpp       >=0.3
-                   , tls                  >=1.1
-                   , tls-extra            >=0.6
                    , crypto-random-api    >=0.2
+                   , data-default         >=0.5
                    , hslogger             >=1.2
                    , mtl                  >=2.1
+                   , network              >=2.4
+                   , pontarius-xmpp       >=0.3
+                   , push-notify          >=0.1
+                   , stm                  >=2.3
+                   , text                 >=0.11
+                   , tls                  >=1.1
+                   , tls-extra            >=0.6
+                   , unordered-containers >=0.2
+                   , xml-types            >=0.3
+
+source-repository head
+  type:     git
+  location: https://github.com/MarcosPividori/GSoC-Communicating-with-mobile-devices.git

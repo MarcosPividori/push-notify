@@ -2,7 +2,7 @@ name:                push-notify
 version:             0.1.0.0
 synopsis:            A server-side library for sending push notifications.
         
-homepage:            https://github.com/MarcosPividori/GSoC-Communicating-with-mobile-devices/tree/master/push-notify
+homepage:            http://gsoc2013cwithmobiledevices.blogspot.com.ar/
 license:             MIT
 license-file:        LICENSE
 author:              Marcos Pividori
@@ -13,19 +13,19 @@ build-type:          Simple
 cabal-version:       >=1.8
 
 library
-  exposed-modules:   Network.PushNotify.Gcm,
-                     Network.PushNotify.Gcm.Send,
-                     Network.PushNotify.Gcm.Types,
-                     Network.PushNotify.Apns,
-                     Network.PushNotify.Apns.Send,
-                     Network.PushNotify.Apns.Types,
-                     Network.PushNotify.Mpns,
-                     Network.PushNotify.Mpns.Send,
-                     Network.PushNotify.Mpns.Types
+  exposed-modules:   Network.PushNotify.Gcm
+                   , Network.PushNotify.Gcm.Send
+                   , Network.PushNotify.Gcm.Types
+                   , Network.PushNotify.Apns
+                   , Network.PushNotify.Apns.Send
+                   , Network.PushNotify.Apns.Types
+                   , Network.PushNotify.Mpns
+                   , Network.PushNotify.Mpns.Send
+                   , Network.PushNotify.Mpns.Types
 
-  other-modules:     Network.PushNotify.Gcm.Constants,
-                     Network.PushNotify.Apns.Constants,
-                     Network.PushNotify.Mpns.Constants
+  other-modules:     Network.PushNotify.Gcm.Constants
+                   , Network.PushNotify.Apns.Constants
+                   , Network.PushNotify.Mpns.Constants
 
   build-depends:     base                 >=4.5  && <5
                    , yesod                >=1.2
@@ -57,3 +57,6 @@ library
                    , tls-extra            >=0.6
                    , xml-conduit          >=1.1
 
+source-repository head
+  type:     git
+  location: https://github.com/MarcosPividori/GSoC-Communicating-with-mobile-devices.git
