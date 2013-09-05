@@ -1,7 +1,6 @@
 {-# LANGUAGE OverloadedStrings #-}
 
-import Network.PushNotify.Gcm.Send
-import Network.PushNotify.Gcm.Types
+import Network.PushNotify.Gcm
 import Network.HTTP.Conduit
 import Network
 import Data.Text

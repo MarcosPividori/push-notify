@@ -1,7 +1,6 @@
 -- GSoC 2013 - Communicating with mobile devices.
 
-import Network.PushNotify.Apns.Send
-import Network.PushNotify.Apns.Types
+import Network.PushNotify.Apns
 import Data.Default
 import Data.Text (pack)
 import Control.Concurrent
