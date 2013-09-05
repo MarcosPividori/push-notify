@@ -3,19 +3,21 @@
 -- | This library defines an API for communicating with WPhone powered devices, sending Push Notifications through Microsoft Push Notification Service.
 
 module Network.PushNotify.Mpns
-    ( 
-    -- * MPNS Service
+    ( -- * MPNS Service
       sendMPNS
-    -- * MPNS Settings
+      -- * MPNS Settings
     , MPNSAppConfig(..)
     , DeviceURI
-    -- * MPNS Messages
-    , MPNSmessage(..)
+      -- * MPNS Messages
     , MPNSType(..)
     , MPNSInterval(..)
-    -- * MPNS Result
+    , MPNSmessage(..)
+      -- * MPNS Result
     , MPNSresult(..)
     , MPNSinfo(..)
+    , MPNSnotifStatus(..)
+    , MPNSsubStatus(..)
+    , MPNSconStatus(..)
     ) where
 
 import Network.PushNotify.Mpns.Send

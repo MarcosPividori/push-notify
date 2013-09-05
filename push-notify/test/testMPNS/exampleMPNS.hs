@@ -1,11 +1,8 @@
-{-# LANGUAGE OverloadedStrings, TypeFamilies, TemplateHaskell,
-               QuasiQuotes, MultiParamTypeClasses, GeneralizedNewtypeDeriving, FlexibleContexts, GADTs #-}
+{-# LANGUAGE OverloadedStrings #-}
 
-import Network.PushNotify.Mpns.Send
-import Network.PushNotify.Mpns.Types
+import Network.PushNotify.Mpns
 import Text.XML
 import Network
-import Data.Map (empty,singleton)
 import Network.HTTP.Conduit
 
 main :: IO ()
@@ -15,8 +12,8 @@ send :: MPNSmessage -> IO ()
 send msg = withSocketsDo $ do
            m    <- newManager def
            res  <- sendMPNS m def msg{
-                            deviceURIs  = ["DeviceUri"] -- here you complete with the device URI.
-                        ,   restXML     = parseText_ def "<?xml version=\"1.0\" encoding=\"utf-8\"?> <root> <value1> Hello World!! </value1> </root> "
-                        }
+                     deviceURIs = ["DeviceUri"] -- here you complete with the device URI.
+                   , restXML   = parseText_ def "<?xml version=\"1.0\" encoding=\"utf-8\"?> <root> <value1> Hello World!! </value1> </root>"
+                   }
            print res
            return ()
