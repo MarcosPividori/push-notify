@@ -6,14 +6,14 @@
 --
 --CCS allows 3rd-party app servers to communicate with Android devices by establishing a persistent TCP connection with Google servers using the XMPP protocol. This communication is asynchronous and bidirectional.
 --
---To establish a XMPP connection, this library uses the Pontarius library ("Network.Xmpp").
+--To establish a XMPP connection, this library uses Pontarius XMPP library.
 
 module Network.PushNotify.Ccs
     (
     -- * CCS Service
-      sendCCS
-    , startCCS
+      startCCS
     , closeCCS
+    , sendCCS
     -- * CCS Settings
     , GCMAppConfig(..)
     , RegId

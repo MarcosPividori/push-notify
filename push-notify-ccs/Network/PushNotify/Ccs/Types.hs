@@ -1,5 +1,7 @@
 -- GSoC 2013 - Communicating with mobile devices.
+
 {-# LANGUAGE FlexibleContexts #-}
+
 -- | This Module define the main data types for sending Push Notifications through Cloud Connection Server (GCM).
 module Network.PushNotify.Ccs.Types
     ( CCSManager(..)
@@ -12,17 +14,17 @@ import Network.PushNotify.Ccs.Constants
 import Control.Concurrent
 import Control.Concurrent.Chan
 import Control.Concurrent.STM.TChan
-import Data.IORef
-import Data.Default
-import Data.Aeson.Types
-import Data.Text
 import qualified Data.HashMap.Strict    as HM
+import Data.Aeson.Types
+import Data.Default
+import Data.IORef
+import Data.Text
 
 -- | Manager of a CCS Connection.
 data CCSManager = CCSManager
     {   mState      :: IORef (Maybe ())
     -- ^ @Nothing@ indicates that the manager is closed.
-    ,   mCcsChannel :: TChan (MVar GCMresult , MVar (Chan ()), GCMmessage)
+    ,   mCcsChannel :: TChan (Chan GCMresult , MVar (Chan ()), GCMmessage)
     -- ^ Channel to communicate with the worker thread.
     ,   mWorkerID   :: ThreadId
     -- ^ Worker thread ID.

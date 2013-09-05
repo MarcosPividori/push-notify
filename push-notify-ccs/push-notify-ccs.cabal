@@ -3,8 +3,6 @@ version:             0.1.0.0
 synopsis:            A server-side library for sending/receiving push notifications through CCS (Google Cloud Messaging).
 description:         This library offers a simple abstraction for sending/receiving notifications through CCS (XMPP - Google Cloud Messaging)
                      .
-                     It uses Pontarius XMPP library for establishing a connection with GCM servers.
-                     .
                      For more information and test examples: <http://gsoc2013cwithmobiledevices.blogspot.com.ar/>
                      .
                      GitHub repository: <https://github.com/MarcosPividori/GSoC-Communicating-with-mobile-devices>

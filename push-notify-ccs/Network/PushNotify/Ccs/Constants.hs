@@ -1,7 +1,8 @@
 -- GSoC 2013 - Communicating with mobile devices.
+
 {-# LANGUAGE OverloadedStrings #-}
 
--- | This Module define the main contants for sending Push Notifications through Cloud Connection Server (GCM).
+-- | This Module define the main constants for sending Push Notifications through Cloud Connection Server (GCM).
 module Network.PushNotify.Ccs.Constants where
 
 import Data.Text
