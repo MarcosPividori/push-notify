@@ -1,6 +1,13 @@
 name:                push-notify-general
 version:             0.1.0.0
 synopsis:            A general server-side library for sending/receiving push notifications through different services as APNS, GCM, MPNS, behind a common abstraction.
+description:         This library offers an API for sending/receiving notifications, and handling the registration of devices on the server.
+                     .
+                     It provides a general abstraction to handle different services as APNS, GCM, MPNS.
+                     .
+                     For more information and test examples: <http://gsoc2013cwithmobiledevices.blogspot.com.ar/>
+                     .
+                     GitHub repository: <https://github.com/MarcosPividori/GSoC-Communicating-with-mobile-devices>
 
 homepage:            http://gsoc2013cwithmobiledevices.blogspot.com.ar/
 license:             MIT

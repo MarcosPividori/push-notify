@@ -1,7 +1,11 @@
 name:                push-notify
 version:             0.1.0.0
 synopsis:            A server-side library for sending push notifications.
-        
+description:         This library offers a simple abstraction for sending notifications through APNS, GCM and MPNS.
+                     .
+                     For more information and test examples: <http://gsoc2013cwithmobiledevices.blogspot.com.ar/>
+                     .
+                     GitHub repository: <https://github.com/MarcosPividori/GSoC-Communicating-with-mobile-devices>
 homepage:            http://gsoc2013cwithmobiledevices.blogspot.com.ar/
 license:             MIT
 license-file:        LICENSE
