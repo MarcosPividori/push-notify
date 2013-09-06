@@ -138,13 +138,13 @@ instance IsPushResult APNSFeedBackresult where
 
 
 instance IsPushResult MPNSresult where
-    toPushResult r = let (successList,failureList) = partition ((== Just Received) . notificationStatus . snd ) $ sucessfullResults r
+    toPushResult r = let (successList,failureList) = partition ((== Just Received) . notificationStatus . snd ) $ successfullResults r
                      in def {
         successful   = map (MPNS . fst) successList
     ,   failed       = map (\(x,y) -> (MPNS x , Right y)) (errorException r)
                     ++ map (\(x,y) -> (MPNS x , Left $ pack $ show $ notificationStatus y)) failureList
     ,   toResend     = map (MPNS . fst) . filter (error500 . snd) $ errorException r
-    ,   unRegistered = map (MPNS . fst) . filter ((== Just Expired) . subscriptionStatus . snd ) $ sucessfullResults r
+    ,   unRegistered = map (MPNS . fst) . filter ((== Just Expired) . subscriptionStatus . snd ) $ successfullResults r
     } where
         error500 :: SomeException -> Bool
         error500 e = case (fromException e) :: Maybe HttpException of

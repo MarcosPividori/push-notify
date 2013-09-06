@@ -39,7 +39,7 @@ sendMPNS manager cnfg msg = do
                         let list  = zip (deviceURIs msg) results
                             (r,l) = partition (isRight . snd) list
                         return $ MPNSresult{
-                            sucessfullResults = map (\(x,Right y) -> (x,y)) r
+                            successfullResults = map (\(x,Right y) -> (x,y)) r
                         ,   errorException    = map (\(x,Left e)  -> (x,e)) l
                         }
                     where
