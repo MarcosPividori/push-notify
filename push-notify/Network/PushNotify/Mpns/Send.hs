@@ -80,6 +80,7 @@ send manager cnfg msg deviceUri = runResourceT $ do
     info <- liftIO $ CE.catch (runResourceT $ retry req manager (numRet cnfg))
                               (\(StatusCodeException rStatus rHeaders c) -> case statusCode rStatus of
                                                                        404 -> return $ handleSuccessfulResponse rHeaders
+                                                                       406 -> return $ handleSuccessfulResponse rHeaders
                                                                        412 -> return $ handleSuccessfulResponse rHeaders
                                                                        _   -> CE.throw $ StatusCodeException rStatus rHeaders c )
     return info
@@ -105,9 +106,10 @@ handleSuccessfulResponse headers = MPNSinfo {
     }
 
 case1 :: Text -> Maybe MPNSnotifStatus
-case1 m | m== cNotifReceived  = Just Received
-        | m== cNotifDropped   = Just Dropped
-        | m== cNotifQueuefull = Just QueueFull
+case1 m | m== cNotifReceived   = Just Received
+        | m== cNotifDropped    = Just Dropped
+        | m== cNotifQueuefull  = Just QueueFull
+        | m== cNotifSuppressed = Just Suppressed
         | otherwise = Nothing
 
 case2 :: Text -> Maybe MPNSsubStatus

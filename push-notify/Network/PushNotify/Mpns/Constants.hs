@@ -41,6 +41,9 @@ cNotifDropped = "Dropped"
 cNotifQueuefull :: Text
 cNotifQueuefull ="QueueFull"
 
+cNotifSuppressed :: Text
+cNotifSuppressed = "Suppressed"
+
 cSubActive :: Text
 cSubActive = "Active"
 

@@ -73,20 +73,22 @@ instance Default MPNSmessage where
 
 
 -- | 'MPNSresult' represents information about messages after a communication with MPNS Servers.
+--
+-- Take into account that a successful result after communicating with MPNS servers does not mean that the notification was successfully sent. It is necessary to check the 'MPNSinfo' , provided by the servers, to really know about the state of the notification.
 data MPNSresult = MPNSresult{
-        sucessfullResults :: [(DeviceURI,MPNSinfo)]         -- ^ Notifications that were successfully sent.
-    ,   errorException    :: [(DeviceURI,CE.SomeException)] -- ^ Failed notifications that you need to resend,
+        successfullResults :: [(DeviceURI,MPNSinfo)]         -- ^ Notifications that were successfully sent. (To the server, not to device)
+    ,   errorException     :: [(DeviceURI,CE.SomeException)] -- ^ Failed notifications that you need to resend,
                                                             -- because there was a problem connecting with MPNS servers.
     } deriving Show
 
 -- | 'MPNSnotifStatus' represents the status of a notification which has been sent.
-data MPNSnotifStatus = Received  | Dropped  | QueueFull deriving Show
+data MPNSnotifStatus = Received  | Dropped  | QueueFull | Suppressed deriving (Show,Eq)
 
 -- | 'MPNSsubStatus' represents the status of a subscription.
-data MPNSsubStatus   = Active    | Expired              deriving Show
+data MPNSsubStatus   = Active    | Expired              deriving (Show,Eq)
 
 -- | 'MPNSconStatus' represents the status of a connection.
-data MPNSconStatus   = Connected | InActive | Disconnected | TempDisconnected deriving Show
+data MPNSconStatus   = Connected | InActive | Disconnected | TempDisconnected deriving (Show,Eq)
 
 -- | 'MPNSinfo' represents information about a specific notification and device, after a communication with MPNS Servers.
 data MPNSinfo = MPNSinfo {
