@@ -1,7 +1,7 @@
 -- Test Example for Push Notifications.
 -- This is a simple example of a Yesod server, where devices can register to send/receive
 -- messages and users can send messages through the web service.
--- Before running this app, its necessary to complete the "approot" and,
+-- Before running this app, its necessary to complete
 -- the "apiKey" -> in case of using the GCM service.
 -- the certificate and privateKey -> in case of using the APNS service.
 
@@ -9,7 +9,6 @@
              QuasiQuotes, MultiParamTypeClasses, GeneralizedNewtypeDeriving, FlexibleContexts, GADTs #-}
 
 import Yesod
-import Yesod.Static
 import Database.Persist
 import Database.Persist.Sqlite
 import Data.Aeson.Types
@@ -53,11 +52,8 @@ Devices
 
 -- Yesod App:
 
-staticFiles "static"
-
 data Messages = Messages {
                             connectionPool :: ConnectionPool -- Connection to the Database.
-                         ,  getStatic      :: Static         -- Reference point of the static data.
                          ,  manager        :: PushManager
                          ,  pushAppSub     :: PushAppSub
                          }
@@ -66,18 +62,16 @@ mkYesod "Messages" [parseRoutes|
 / RootR GET
 /fromdevices PushAppSubR PushAppSub pushAppSub
 /fromweb FromWebR POST
-/static StaticR Static getStatic
 |]
 
 -- Instances:
 
-instance Yesod Messages where
-    approot = ApprootStatic "" -- Here you must complete with the correct route.
+instance Yesod Messages
 
 instance YesodPersist Messages where
     type YesodPersistBackend Messages = SqlPersistT
     runDB action = do
-        Messages pool _ _ _ <- getYesod
+        Messages pool _ _ <- getYesod
         runSqlPool action pool
 
 instance RenderMessage Messages FormMessage where
@@ -129,7 +123,7 @@ postFromWebR = do
                                    case res of
                                        Just a  -> return [a]
                                        Nothing -> return []
-    Messages _ _ man _ <- getYesod
+    Messages _ man _ <- getYesod
     $(logInfo) ("\tA new message: \""<>msg<>"\"\t")
     let regIdsList = map (\a -> devicesIdentifier(entityVal a)) list
     if regIdsList /= []
@@ -186,7 +180,7 @@ handleToResend msg n list = do
                     $(logInfo) ("\tHandling ToReSend: "<>pack (show list)<>"\t")
                     if list /= []
                     then do
-                        Messages _ _ m _ <- getYesod
+                        Messages _ m _ <- getYesod
                         res <- liftIO $ CE.catch -- I catch IO exceptions to avoid showing unsecure information.
                                     (sendPush m msg list)
                                     (\e -> do
@@ -215,8 +209,7 @@ main = do
         ,   newIdCallback        = handleNewId pool
         }
       writeIORef ref $ Just man
-      static@(Static settings) <- static "static"
-      warp 3000 $ Messages pool static man pSub
+      warp 3000 $ Messages pool man pSub
 
       where
        pars :: Value -> Parser (Text,Text)
