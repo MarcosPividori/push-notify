@@ -71,7 +71,8 @@ main = do
       ref <- newIORef Nothing
       (man,pSub) <- startPushService $ PushServiceConfig{
             pushConfig           = def{
-                                       gcmAppConfig  = Just $ GCMAppConfig "apikey" "senderId" 5 -- Here you must complete with the correct Api Key and SenderId.
+                                       gcmAppConfig  = Just $ GCMAppConfig "apikey" "senderId" 5 -- Here you must complete with the
+                                                                                                 -- correct Api Key and SenderId.
 --                                 ,   apnsAppConfig = Just def{certificate  = "" , privateKey   = "" }
                                    ,   mpnsAppConfig = Just def
                                    }
@@ -82,14 +83,14 @@ main = do
         }
       writeIORef ref $ Just man
       warp 3000 $ Echo pool man pSub
-      
+
       where
        parsMsg :: Value -> Parser Text
        parsMsg (Object v) = v .: "message"
        parsMsg _          = mzero
-       
+
        runDBAct p a = runResourceT . runNoLoggingT $ runSqlPool a p
-              
+
        handleNewDevice pool d v = do
           device <- runDBAct pool $ getBy $ UniqueDevice d
           case device of
@@ -109,9 +110,9 @@ main = do
                            Nothing  -> return ()
                            Just msg -> do
                                          let message = def {
-                                                             gcmNotif  = Just $ def {data_object = Just (HM.fromList 
+                                                             gcmNotif  = Just $ def {data_object = Just (HM.fromList
                                                                          [(pack "Message" .= msg)]) }
-                                                           , mpnsNotif = Just $ def {target = Toast , restXML = 
+                                                           , mpnsNotif = Just $ def {target = Toast , restXML =
                                                                          Document (Prologue [] Nothing []) (xmlMessage msg) []}}
                                          sendPush man message [d]
                                          return ()
@@ -126,7 +127,7 @@ main = do
        
        xmlMessage msg = Element (Name "Notification" (Just "WPNotification") (Just "wp")) (M.singleton "xmlns:wp" "WPNotification") [xml|
 <wp:Toast>
-    <wp:Text1>New message: 
+    <wp:Text1>New message:
     <wp:Text2>#{msg}
     <wp:Param>?msg=#{msg}
 |]
