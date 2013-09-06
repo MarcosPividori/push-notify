@@ -1,5 +1,5 @@
 -- Test Example for Push Notifications.
--- This is a simple example of a Yesod server, where devices can register to receive
+-- This is a simple example of a Yesod server, where devices can register to send/receive
 -- messages and users can send messages through the web service.
 -- Before running this app, its necessary to complete the "approot" and,
 -- the "apiKey" -> in case of using the GCM service.
@@ -99,7 +99,7 @@ getRootR = do
                             $forall message <- T.lines msg
                                 <li>#{message}
                             <form method=post action=@{FromWebR}>
-                                <input type="hidden" name="clear" value="clear" /> 
+                                <input type="hidden" name="clear" value="clear" />
                                 <input type=submit style="font-weight:bold;" value="Clear">
                         <br><b>Select a user:</b><br>
                         <form method=post action=@{FromWebR}>
@@ -120,7 +120,7 @@ postFromWebR = do
                  deleteSession "history"
                  redirect RootR
    _      -> do
-    msg  <- runInputPost $ ireq textField "message" 
+    msg  <- runInputPost $ ireq textField "message"
     dest <- runInputPost $ ireq textField "destination"
     list <- case dest of
                 "EveryOne"  -> runDB $ selectList [] [Desc DevicesIdentifier]
@@ -133,7 +133,7 @@ postFromWebR = do
     $(logInfo) ("\tA new message: \""<>msg<>"\"\t")
     let regIdsList = map (\a -> devicesIdentifier(entityVal a)) list
     if regIdsList /= []
-    then do 
+    then do
             let message = def {
                          gcmNotif  = Just $ def {data_object = Just (HM.fromList [(pack "Message" .= msg)]) }
                      ,   mpnsNotif = Just $ def {target = Toast , restXML = Document (Prologue [] Nothing []) (xmlMessage msg) []}
@@ -143,7 +143,6 @@ postFromWebR = do
                         (\e -> do
                                    let _ = (e :: CE.SomeException)
                                    fail "Problem communicating with Push Servers")
-            return ()
             handleResult message result 5
     else do
             return ()
@@ -155,7 +154,7 @@ postFromWebR = do
     where
         xmlMessage msg = Element (Name "Notification" (Just "WPNotification") (Just "wp")) (M.singleton "xmlns:wp" "WPNotification") [xml|
 <wp:Toast>
-    <wp:Text1>New message: 
+    <wp:Text1>New message:
     <wp:Text2>#{msg}
     <wp:Param>?msg=#{msg}
 |]
@@ -163,8 +162,8 @@ postFromWebR = do
 -- Handle the result of the communication with the Push Servers.
 handleResult :: PushNotification -> PushResult -> Int -> Handler ()
 handleResult msg res n = do
-                            handleFailed         $ failed       res
-                            handleToResend msg n $ toResend     res
+                            handleFailed         $ failed   res
+                            handleToResend msg n $ toResend res
 
 -- Handle the msg that failed, I decide to unregister devices when I get a 400 error trying to send them a notification.
 handleFailed :: [(Device,Either Text CE.SomeException)] -> Handler ()
@@ -204,8 +203,10 @@ main = do
       ref <- newIORef Nothing
       (man,pSub) <- startPushService $ PushServiceConfig{
             pushConfig           = def{
-                                       gcmAppConfig  = Just $ GCMAppConfig "apikey" "senderId" 5 -- Here you must complete with the correct Api Key and SenderId.
+                                       gcmAppConfig  = Just $ GCMAppConfig "apikey" "senderId" 5 -- Here you must complete with the
+                                                                                                 -- correct Api Key and SenderId.
 --                                 ,   apnsAppConfig = Just def{certificate  = "" , privateKey   = "" }
+                                   ,   useCCS = True
                                    ,   mpnsAppConfig = Just def
                                    }
         ,   newMessageCallback   = handleNewMessage pool ref
@@ -216,20 +217,20 @@ main = do
       writeIORef ref $ Just man
       static@(Static settings) <- static "static"
       warp 3000 $ Messages pool static man pSub
-      
+
       where
        pars :: Value -> Parser (Text,Text)
        pars (Object v) = (,) <$>
-                         v .: "user" <*>
-                         v .: "password"
+                 v .: "user" <*>
+                 v .: "password"
        pars _          = mzero
 
        parsMsg :: Value -> Parser Text
        parsMsg (Object v) = v .: "message"
        parsMsg _          = mzero
-       
+
        runDBAct p a = runResourceT . runNoLoggingT $ runSqlPool a p
-              
+
        handleNewDevice pool d v = do
           res  <- return $ parseMaybe pars v
           case res of
@@ -242,7 +243,7 @@ main = do
                 Nothing -> do
                              dev <- runDBAct pool $ getBy $ UniqueDevice d
                              case dev of
-                               Just x  -> do 
+                               Just x  -> do
                                             runDBAct pool $ update (entityKey (x)) [DevicesUser =. usr , DevicesPassword =. pass]
                                             return SuccessfulReg
                                Nothing -> do
@@ -275,7 +276,7 @@ main = do
                                                         sendPush man message [d]
                                                         putStr ("\nNew message from device!:\n-User: " ++ show usr
                                                                 ++ "\n-Msg: " ++ show msg ++ "\n")
-       
+
        handleNewId pool (old,new) = do
                                       dev  <- runDBAct pool $ getBy $ UniqueDevice old
                                       case dev of
