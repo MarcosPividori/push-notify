@@ -25,6 +25,7 @@ library
                    , Network.PushNotify.General.Send
                    , Network.PushNotify.General.Types
                    , Network.PushNotify.General.YesodPushApp
+                   , Network.PushNotify.General.YesodPushAppRoutes
 
   build-depends:     base                 >=4.5  && <5
                    , aeson                >=0.6

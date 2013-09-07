@@ -5,22 +5,15 @@ module Network.PushNotify.General.YesodPushApp(
   ) where
 
 import Network.PushNotify.General.Types
+import Network.PushNotify.General.YesodPushAppRoutes
 import Yesod
 import Control.Concurrent
 import Data.Text
 import Data.Aeson
 import qualified Data.HashMap.Strict as HM
 
--- | Yesod subsite to be used for the registration and reception of messages from devices.
-data PushAppSub = PushAppSub {
-                            newmessageCallback :: Device -> Value -> IO ()
-                         ,  newdeviceCallback  :: Device -> Value -> IO RegisterResult
-                         }
-
-mkYesodSubData "PushAppSub" [parseRoutes|
-/register SubRegisterR POST
-/messages SubMessagesR POST
-|]
+instance (RenderMessage master FormMessage, Yesod master) => YesodSubDispatch PushAppSub (HandlerT master IO) where
+    yesodSubDispatch = $(mkYesodSubDispatch resourcesPushAppSub)
 
 -- 'postRegister' allows a mobile device to register. (JSON POST messages to '/register')
 postSubRegisterR :: (RenderMessage master FormMessage, Yesod master) => HandlerT PushAppSub (HandlerT master IO) ()
