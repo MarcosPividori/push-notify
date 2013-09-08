@@ -45,6 +45,7 @@ import Network.Xmpp.Internal
 import Network.TLS
 import Network.TLS.Extra
 import Crypto.Random.API
+import qualified Crypto.Random.AESCtr
 import GHC.IO.Handle
 import System.Log.Logger
 
@@ -58,7 +59,7 @@ connectCCS config = do
                               , backendSend  = BS.hPut hdl
                               , backendRecv  = BS.hGet hdl
                               }
-            gen <- getSystemRandomGen
+            gen <- Crypto.Random.AESCtr.makeSystem
             ctx <- contextNew
                        bck
                        (defaultParamsClient { pCiphers = ciphersuite_medium })
