@@ -5,28 +5,36 @@ module Network.PushNotify.General.Types
       Device(..)
     , PushServiceConfig(..)
     , RegisterResult(..)
-    , PushAppConfig(..)
+    , GCMConfig(..)
+    , PushConfig(..)
+      -- * Push Manager
     , PushManager(..)
       -- * Push Message
     , PushNotification(..)
+    , generalNotif
       -- * Push Result
     , PushResult(..)
     , IsPushResult(..)
     ) where
 
-import Network.PushNotify.Gcm.Types
-import Network.PushNotify.Apns.Types
-import Network.PushNotify.Mpns.Types
+import Network.PushNotify.Gcm
+import Network.PushNotify.Apns
+import Network.PushNotify.Mpns
 import Network.PushNotify.Ccs
 import Network.HTTP.Conduit
 import Network.HTTP.Types.Status
 import Control.Exception
 
-import Data.Text    (Text,pack)
+import qualified Data.Map               as M
+import qualified Data.ByteString.Lazy   as BL
+import qualified Data.ByteString        as BS
+import qualified Data.Text.Encoding     as E
 import Data.Aeson
 import Data.Default
-import Data.Monoid
 import Data.List
+import Data.Monoid
+import Data.Text     (Text,pack)
+import Text.XML
 
 -- | Unique identifier of an app/device.
 data Device = GCM  RegId        -- ^ An Android app.
@@ -44,23 +52,47 @@ data PushNotification = PushNotification {
 instance Default PushNotification where
     def = PushNotification Nothing Nothing Nothing
 
+-- | 'generalNotif' Builds a general notification from JSON data.
+--
+-- If data length exceeds 256 bytes (max payload limit for APNS) it will fails.
+--
+-- For MPNS, data will be XML-labeled as \"jsonData\".
+generalNotif :: Object -> IO PushNotification
+generalNotif dat = do 
+    let msg = PushNotification {
+            apnsNotif = Just def{ rest        = Just dat}
+        ,   gcmNotif  = Just def{ data_object = Just dat}
+        ,   mpnsNotif = Just def{ restXML     = Document (Prologue [] Nothing [])
+                                                         (Element (Name "jsonData" Nothing Nothing)
+                                                                 M.empty
+                                                                 [NodeContent $ E.decodeUtf8 $
+                                                                    BS.concat . BL.toChunks $ encode dat])
+                                                         []
+                                }
+        }
+    if ((BL.length . encode . apnsNotif) msg > 256)
+      then fail "Too long payload"
+      else return msg
+
+-- | Settings for GCM service.
+data GCMConfig = Http GCMHttpConfig | Ccs GCMCcsConfig
+
 -- | Main settings for the different Push Services. @Nothing@ means the service won't be used.
-data PushAppConfig = PushAppConfig{
-        gcmAppConfig  :: Maybe GCMAppConfig
-    ,   apnsAppConfig :: Maybe APNSAppConfig
-    ,   mpnsAppConfig :: Maybe MPNSAppConfig
-    ,   useCCS        :: Bool                -- ^ Flag to determine which service must be used for GCM (CCS or HTTP).
+data PushConfig = PushConfig{
+        gcmConfig  :: Maybe GCMConfig
+    ,   apnsConfig :: Maybe APNSConfig
+    ,   mpnsConfig :: Maybe MPNSConfig
     }
 
-instance Default PushAppConfig where
-    def = PushAppConfig Nothing Nothing Nothing True
+instance Default PushConfig where
+    def = PushConfig Nothing Nothing Nothing
 
 -- | 'RegisterResult' represents the result of a device attempting to register
 data RegisterResult = SuccessfulReg | ErrorReg Text
 
 -- | Main settings for the Push Service.
 data PushServiceConfig = PushServiceConfig {
-        pushConfig           :: PushAppConfig                -- ^ Main configuration.
+        pushConfig           :: PushConfig                   -- ^ Main configuration.
     ,   newMessageCallback   :: Device -> Value -> IO ()     -- ^ The callback function to be called when receiving messages from devices
                                                              -- (This means through the CCS connection or as POST requests
                                                              -- to the Yesod subsite).
@@ -80,6 +112,9 @@ instance Default PushServiceConfig where
     }
 
 -- | Main manager for the Push Service.
+--
+-- This 'PushManager' will be used to send notifications and also can be added as a subsite to a Yesod app
+-- in order to receive registrations and messages from devices as HTTP POST requests.
 data PushManager = PushManager {
         httpManager    :: Maybe Manager       -- ^ Conduit manager for sending push notifications though POST requests.
     ,   apnsManager    :: Maybe APNSManager   -- ^ Apns manager for sending push notifications though APNS servers.

@@ -7,13 +7,8 @@ import Network.PushNotify.General.Types
 import Control.Concurrent
 import Data.Text
 
--- | Yesod subsite to be used for the registration and reception of messages from devices.
-data PushAppSub = PushAppSub {
-                            newmessageCallback :: Device -> Value -> IO ()
-                         ,  newdeviceCallback  :: Device -> Value -> IO RegisterResult
-                         }
-
-mkYesodSubData "PushAppSub" [parseRoutes|
+-- Yesod subsite to be used for the registration and reception of messages from devices.
+mkYesodSubData "PushManager" [parseRoutes|
 /register SubRegisterR POST
 /messages SubMessagesR POST
 |]

@@ -3,6 +3,7 @@ module Network.PushNotify.General.Send(
     startPushService
   , closePushService
   , sendPush
+  , withPushManager
   ) where
 
 import Network.PushNotify.General.Types
@@ -10,6 +11,7 @@ import Network.PushNotify.General.YesodPushApp
 
 import Yesod
 import Data.Text                        (Text)
+import Data.Maybe
 import Data.Monoid
 import Data.Default
 import Control.Concurrent
@@ -21,31 +23,29 @@ import Network.PushNotify.Apns
 import Network.PushNotify.Mpns
 import Network.PushNotify.Ccs
 
--- | 'startPushService' starts the PushService creating a Manager and a Yesod subsite.
---
--- The Manager will be used to send notifications.
---
--- The Yesod subsite will be used to receive registrations and messages from devices as POST HTTP requests.
-startPushService :: PushServiceConfig -> IO (PushManager,PushAppSub)
+-- | 'startPushService' starts the PushService creating a PushManager.
+startPushService :: PushServiceConfig -> IO PushManager
 startPushService pConfig = do
-                       let cnfg = pushConfig pConfig
-                       httpMan <- case (gcmAppConfig cnfg , mpnsAppConfig cnfg) of
-                                      (Nothing,Nothing) -> return Nothing
-                                      _                 -> do
-                                                             m <- newManager def
-                                                             return (Just m)
-                       apnsMan <- case apnsAppConfig cnfg of
-                                      Just cnf          -> do
-                                                             m <- startAPNS cnf
-                                                             return (Just m)
-                                      Nothing           -> return Nothing
-                       ccsMan  <- case (gcmAppConfig cnfg,useCCS cnfg) of
-                                      (Just cnf,True)   -> do
-                                                             m <- startCCS cnf (\d -> (newMessageCallback pConfig) (GCM d))
-                                                             return (Just m)
-                                      _                 -> return Nothing
-                       return ( PushManager httpMan apnsMan ccsMan pConfig
-                              , PushAppSub (newMessageCallback pConfig) (newDeviceCallback pConfig))
+                let cnfg    = pushConfig pConfig
+                    gcmflag = case gcmConfig cnfg of
+                                Just (Http _) -> True
+                                _             -> False
+                httpMan <- if gcmflag || isJust (mpnsConfig cnfg)
+                             then do
+                                    m <- newManager def
+                                    return (Just m)
+                             else return Nothing
+                apnsMan <- case apnsConfig cnfg of
+                             Just cnf -> do
+                                    m <- startAPNS cnf
+                                    return (Just m)
+                             Nothing  -> return Nothing
+                ccsMan  <- case gcmConfig cnfg of
+                             Just (Ccs cnf) -> do
+                                    m <- startCCS cnf (\d -> (newMessageCallback pConfig) (GCM d))
+                                    return (Just m)
+                             _                    -> return Nothing
+                return $ PushManager httpMan apnsMan ccsMan pConfig
 
 -- | 'closePushService' stops the Push service.
 closePushService :: PushManager -> IO ()
@@ -59,6 +59,10 @@ closePushService man = do
                          case ccsManager man of
                              Just m -> closeCCS m
                              _      -> return ()
+
+-- | 'withPushManager' creates a new manager, uses it in the provided function, and then releases it.
+withPushManager :: PushServiceConfig -> (PushManager -> IO a) -> IO a
+withPushManager confg fun = CE.bracket (startPushService confg) closePushService fun
 
 forgetConst :: Device -> Text
 forgetConst (GCM  x) = x
@@ -84,31 +88,38 @@ sendPush man notif devices = do
                     pConfig     = serviceConfig man
                     config      = pushConfig pConfig
 
-                r1 <- case (gcmDevices , gcmAppConfig config , gcmNotif  notif , httpManager man , ccsManager man) of
-                          (_:_,Just cnf,Just msg,_,Just m)  -> do
-                                                                 let msg' = msg{registration_ids = gcmDevices}
-                                                                 res <- CE.catch (sendCCS m msg')
-                                                                          (\e -> let _ = e :: CE.SomeException in
-                                                                             case httpManager man of
-                                                                               Just hman -> sendGCM hman cnf msg'
-                                                                               _ -> throw e)
-                                                                 return $ toPushResult res
-                          (_:_,Just cnf,Just msg,Just m,_ ) -> do
-                                                                 res <- sendGCM m cnf msg{registration_ids = gcmDevices}
-                                                                 return $ toPushResult res
-                          _                                 -> return def
+                r1 <- case (gcmDevices , gcmConfig config , gcmNotif  notif , httpManager man , ccsManager man) of
+
+                          (_:_,Just (Ccs cnf),Just msg,_,Just m)   -> do
+                                        let msg' = msg{registration_ids = gcmDevices}
+                                        res <- CE.catch (sendCCS m msg')
+                                                (\e -> let _ = e :: CE.SomeException in
+                                                         case httpManager man of
+                                                           Just hman -> sendGCM hman def{apiKey = aPiKey cnf} msg'
+                                                           _ -> throw e)
+                                        return $ toPushResult res
+
+                          (_:_,Just (Http cnf),Just msg,Just m,_ ) -> do
+                                        res <- sendGCM m cnf msg{registration_ids = gcmDevices}
+                                        return $ toPushResult res
+
+                          _                                        -> return def
 
                 r2 <- case (apnsDevices , apnsNotif notif , apnsManager man) of
-                          (_:_,Just msg,Just m)             -> do
-                                                                 res <- sendAPNS m msg{deviceTokens = apnsDevices}
-                                                                 return $ toPushResult res
-                          _                                 -> return def
 
-                r3 <- case (mpnsDevices , mpnsAppConfig config , mpnsNotif notif , httpManager man) of
-                          (_:_,Just cnf,Just msg,Just m)    -> do
-                                                                 res <- sendMPNS m cnf msg{deviceURIs = mpnsDevices}
-                                                                 return $ toPushResult res
-                          _                                 -> return def
+                          (_:_,Just msg,Just m) -> do
+                                        res <- sendAPNS m msg{deviceTokens = apnsDevices}
+                                        return $ toPushResult res
+
+                          _                     -> return def
+
+                r3 <- case (mpnsDevices , mpnsConfig config , mpnsNotif notif , httpManager man) of
+
+                          (_:_,Just cnf,Just msg,Just m) -> do
+                                        res <- sendMPNS m cnf msg{deviceURIs = mpnsDevices}
+                                        return $ toPushResult res
+
+                          _                              -> return def
 
                 let res = r1 <> r2 <> r3
 

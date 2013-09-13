@@ -2,7 +2,7 @@
 -- This is a simple example of a Yesod server, where devices can register to send/receive
 -- messages and users can send messages through the web service.
 -- Before running this app, its necessary to complete
--- the "apiKey" -> in case of using the GCM service.
+-- the "apiKey" and "senderID"    -> in case of using the GCM-CCS service.
 -- the certificate and privateKey -> in case of using the APNS service.
 
 {-# LANGUAGE OverloadedStrings, TypeFamilies, TemplateHaskell, FlexibleInstances,
@@ -32,7 +32,8 @@ import Control.Monad.Logger
 import Control.Monad.Trans.Resource   (runResourceT)
 import Network.HTTP.Conduit
 import Network.HTTP.Types.Status
-import Network.PushNotify.Gcm
+import Network.TLS.Extra              (fileReadCertificate,fileReadPrivateKey)
+import Network.PushNotify.Ccs
 import Network.PushNotify.Apns
 import Network.PushNotify.Mpns
 import Network.PushNotify.General
@@ -54,13 +55,12 @@ Devices
 
 data Messages = Messages {
                             connectionPool :: ConnectionPool -- Connection to the Database.
-                         ,  manager        :: PushManager
-                         ,  pushAppSub     :: PushAppSub
+                         ,  pushManager    :: PushManager
                          }
 
 mkYesod "Messages" [parseRoutes|
 / RootR GET
-/fromdevices PushAppSubR PushAppSub pushAppSub
+/fromdevices PushManagerR PushManager pushManager
 /fromweb FromWebR POST
 |]
 
@@ -71,7 +71,7 @@ instance Yesod Messages
 instance YesodPersist Messages where
     type YesodPersistBackend Messages = SqlPersistT
     runDB action = do
-        Messages pool _ _ <- getYesod
+        Messages pool _ <- getYesod
         runSqlPool action pool
 
 instance RenderMessage Messages FormMessage where
@@ -123,7 +123,7 @@ postFromWebR = do
                                    case res of
                                        Just a  -> return [a]
                                        Nothing -> return []
-    Messages _ man _ <- getYesod
+    Messages _ man <- getYesod
     $(logInfo) ("\tA new message: \""<>msg<>"\"\t")
     let regIdsList = map (\a -> devicesIdentifier(entityVal a)) list
     if regIdsList /= []
@@ -180,7 +180,7 @@ handleToResend msg n list = do
                     $(logInfo) ("\tHandling ToReSend: "<>pack (show list)<>"\t")
                     if list /= []
                     then do
-                        Messages _ m _ <- getYesod
+                        Messages _ m <- getYesod
                         res <- liftIO $ CE.catch -- I catch IO exceptions to avoid showing unsecure information.
                                     (sendPush m msg list)
                                     (\e -> do
@@ -195,13 +195,15 @@ main = do
     runSqlPool (runMigration migrateAll) pool
     liftIO $ do
       ref <- newIORef Nothing
-      (man,pSub) <- startPushService $ PushServiceConfig{
+--    cert <- fileReadCertificate "public-cert.pem" -- your APNS Certificate
+--    key  <- fileReadPrivateKey  "private-key.pem" -- your APNS PrivateKey
+      man  <- startPushService $ PushServiceConfig{
             pushConfig           = def{
-                                       gcmAppConfig  = Just $ GCMAppConfig "apikey" "senderId" 5 -- Here you must complete with the
-                                                                                                 -- correct Api Key and SenderId.
---                                 ,   apnsAppConfig = Just def{certificate  = "" , privateKey   = "" }
-                                   ,   useCCS = True
-                                   ,   mpnsAppConfig = Just def
+                                       gcmConfig  = Just $ Ccs $ 
+                                             GCMCcsConfig{ aPiKey   = ""  -- Here you must complete with the
+                                                         , senderID = ""} -- correct Api Key and SenderId.
+--                                 ,   apnsConfig = Just $ def{environment = Local , apnsCertificate  = cert , apnsPrivateKey = key }
+                                   ,   mpnsConfig = Just def
                                    }
         ,   newMessageCallback   = handleNewMessage pool ref
         ,   newDeviceCallback    = handleNewDevice pool
@@ -209,7 +211,7 @@ main = do
         ,   newIdCallback        = handleNewId pool
         }
       writeIORef ref $ Just man
-      warp 3000 $ Messages pool man pSub
+      warp 3000 $ Messages pool man
 
       where
        pars :: Value -> Parser (Text,Text)
