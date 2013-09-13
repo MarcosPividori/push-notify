@@ -10,7 +10,8 @@ import Control.Concurrent
 
 main :: IO ()
 main = do
-         man <- startCCS (GCMCcsConfig "ApiKey" "senderId")
+         man <- startCCS def{ aPiKey   = "apikey"
+                            , senderID = "senderid"}
                          (\r dat -> do
                                       putStrLn "A new Message from device!: "
                                       putStrLn $ "\t From: " ++ show r

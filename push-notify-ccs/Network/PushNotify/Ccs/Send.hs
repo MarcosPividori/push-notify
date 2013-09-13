@@ -23,6 +23,7 @@ import Control.Concurrent.STM.TChan
 import Control.Monad.Error
 import Control.Monad.STM
 import Control.Monad
+import Control.Retry
 import Data.Aeson
 import Data.Aeson.Types
 import Data.Aeson.Parser
@@ -97,7 +98,7 @@ startCCS config newMessageCallbackFunction = do
 -- Main worker thread.
 ccsWorker :: GCMCcsConfig -> TChan (Chan GCMresult , MVar (Chan ()), GCMmessage) -> (RegId -> Value -> IO ()) -> IO ()
 ccsWorker config requestChan callBackF = do
-        sess      <- connectCCS config
+        sess      <- recoverAll (ccsRetrySettings config) $ connectCCS config
         cont      <- newIORef 1000
         hmap      <- newIORef HM.empty
         lock      <- newEmptyMVar
