@@ -32,7 +32,7 @@ retrySettingsGCM = RetrySettings {
 }
 
 -- | 'sendGCM' sends the message to a GCM Server.
-sendGCM :: Manager -> GCMAppConfig -> GCMmessage -> IO GCMresult
+sendGCM :: Manager -> GCMHttpConfig -> GCMmessage -> IO GCMresult
 sendGCM manager cnfg msg = runResourceT $ do
     req' <- liftIO $ parseUrl $ unpack cPOST_URL
     let value   = toJSON msg

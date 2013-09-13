@@ -2,18 +2,21 @@
 
 import Network.PushNotify.Apns
 import Data.Default
-import Data.Text (pack)
+import Data.Text            (pack)
 import Control.Concurrent
+import Network.TLS.Extra    (fileReadCertificate,fileReadPrivateKey)
 
 main :: IO ()
 main = example1
 
 example1 :: IO ()
 example1 = do
+             cert <- fileReadCertificate "public-cert.pem"
+             key  <- fileReadPrivateKey  "private-key.pem"
              let confg = def{
-                             certificate = "public-cert.pem"
-                         ,   privateKey  = "private-key.pem"
-                         ,   environment = Local }
+                             apnsCertificate = cert
+                         ,   apnsPrivateKey  = key
+                         ,   environment     = Local }
 
              putStrLn "Let's send a notification:"
 
@@ -28,7 +31,7 @@ example1 = do
              res     <- sendAPNS manager msg
              putStrLn ("Result: " ++ show res)
              closeAPNS manager
-             
+
              putStrLn "\nLet's connect to the Feedback Service:"
              fres    <- feedBackAPNS confg
              putStrLn ("Result: " ++ show fres)
@@ -36,9 +39,11 @@ example1 = do
 
 example2 :: IO ()
 example2 = do
+             cert <- fileReadCertificate "public-cert.pem"
+             key  <- fileReadPrivateKey  "private-key.pem"
              let confg = def{
-                             certificate = "public-cert.pem"
-                         ,   privateKey  = "private-key.pem"
+                             apnsCertificate = cert
+                         ,   apnsPrivateKey  = key
                          ,   environment = Local
                          }
 

@@ -8,9 +8,10 @@ module Network.PushNotify.Apns
       sendAPNS
     , startAPNS
     , closeAPNS
+    , withAPNS
     , feedBackAPNS
     -- * APNS Settings
-    , APNSAppConfig(..)
+    , APNSConfig(..)
     , APNSManager
     , DeviceToken
     , Env(..)

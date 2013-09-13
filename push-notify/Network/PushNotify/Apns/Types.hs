@@ -6,7 +6,7 @@
 
 module Network.PushNotify.Apns.Types
     ( -- * APNS Settings
-      APNSAppConfig(..)
+      APNSConfig(..)
     , APNSManager(..)
     , DeviceToken
     , Env(..)
@@ -19,12 +19,14 @@ module Network.PushNotify.Apns.Types
     ) where
 
 import Network.PushNotify.Apns.Constants
+import Network.TLS              (PrivateKey)
 import Control.Concurrent
 import Control.Concurrent.STM.TChan
 import Control.Monad.Writer
 import Data.Aeson.Types
+import Data.Certificate.X509    (X509)
 import Data.Default
-import Data.HashMap.Strict (insert,HashMap)
+import Data.HashMap.Strict      (insert,HashMap)
 import Data.IORef
 import Data.Text
 import Data.Time.Clock
@@ -35,20 +37,20 @@ data Env = Development -- ^ Development environment (by Apple).
          | Local       -- ^ Local environment, just to test the service in the \"localhost\".
          deriving Show
 
--- | 'APNSAppConfig' represents the main necessary information for sending notifications through APNS.
-data APNSAppConfig = APNSAppConfig
-    {   certificate  :: String -- ^ Certificate provided by Apple.
-    ,   privateKey   :: String -- ^ Private key provided by Apple.
-    ,   environment  :: Env    -- ^ One of the possible environments.
-    ,   timeoutLimit :: Int    -- ^ The time to wait for a server response. (microseconds)
+-- | 'APNSConfig' represents the main necessary information for sending notifications through APNS.
+data APNSConfig = APNSConfig
+    {   apnsCertificate :: X509       -- ^ Certificate provided by Apple.
+    ,   apnsPrivateKey  :: PrivateKey -- ^ Private key provided by Apple.
+    ,   environment     :: Env        -- ^ One of the possible environments.
+    ,   timeoutLimit    :: Int        -- ^ The time to wait for a server response. (microseconds)
     }
 
-instance Default APNSAppConfig where
-    def = APNSAppConfig {
-        certificate  = ""
-    ,   privateKey   = ""
-    ,   environment  = Development
-    ,   timeoutLimit = 200000
+instance Default APNSConfig where
+    def = APNSConfig {
+        apnsCertificate = undefined
+    ,   apnsPrivateKey  = undefined
+    ,   environment     = Development
+    ,   timeoutLimit    = 200000
     }
 
 data APNSManager = APNSManager

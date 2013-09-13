@@ -18,18 +18,18 @@ cabal-version:       >=1.8
 
 library
   exposed-modules:   Network.PushNotify.Gcm
-                   , Network.PushNotify.Gcm.Send
                    , Network.PushNotify.Gcm.Types
                    , Network.PushNotify.Apns
-                   , Network.PushNotify.Apns.Send
-                   , Network.PushNotify.Apns.Types
                    , Network.PushNotify.Mpns
-                   , Network.PushNotify.Mpns.Send
-                   , Network.PushNotify.Mpns.Types
 
   other-modules:     Network.PushNotify.Gcm.Constants
+                   , Network.PushNotify.Gcm.Send
                    , Network.PushNotify.Apns.Constants
+                   , Network.PushNotify.Apns.Send
+                   , Network.PushNotify.Apns.Types
                    , Network.PushNotify.Mpns.Constants
+                   , Network.PushNotify.Mpns.Send
+                   , Network.PushNotify.Mpns.Types
 
   build-depends:     base                 >=4.5  && <5
                    , aeson                >=0.6

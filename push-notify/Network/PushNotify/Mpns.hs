@@ -6,7 +6,7 @@ module Network.PushNotify.Mpns
     ( -- * MPNS Service
       sendMPNS
       -- * MPNS Settings
-    , MPNSAppConfig(..)
+    , MPNSConfig(..)
     , DeviceURI
       -- * MPNS Messages
     , MPNSType(..)

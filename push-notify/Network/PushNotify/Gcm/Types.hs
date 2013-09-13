@@ -5,7 +5,7 @@
 -- | This Module define the main data types for sending Push Notifications through Google Cloud Messaging.
 module Network.PushNotify.Gcm.Types
     ( -- * GCM Settings
-      GCMAppConfig(..)
+      GCMHttpConfig(..)
     , RegId
       -- * GCM Messages
     , GCMmessage(..)
@@ -22,15 +22,14 @@ import Data.Monoid
 import Data.Text
 
 
--- | 'GCMAppConfig' represents the main necessary information for sending notifications through GCM.
-data GCMAppConfig = GCMAppConfig
+-- | 'GCMHttpConfig' represents the main necessary information for sending notifications through GCM.
+data GCMHttpConfig = GCMHttpConfig
     {   apiKey   :: Text -- ^ Api key provided by Google.
-    ,   senderID :: Text -- ^ Sender ID, only necessary when using CCS.
     ,   numRet   :: Int  -- ^ Number of attemps to send the message to the server.
     }   deriving Show
     
-instance Default GCMAppConfig where
-    def = GCMAppConfig "" "" 5
+instance Default GCMHttpConfig where
+    def = GCMHttpConfig "" 5
 
 -- | 'RegId' is an unique identifier of an app/device, provided by GCM.
 type RegId = Text

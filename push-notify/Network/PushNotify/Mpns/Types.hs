@@ -5,7 +5,7 @@
 -- | This Module define the main data types for sending Push Notifications through Microsoft Push Notification Service.
 module Network.PushNotify.Mpns.Types
     ( -- * MPNS Settings
-      MPNSAppConfig(..)
+      MPNSConfig(..)
     , DeviceURI
       -- * MPNS Messages
     , MPNSType(..)
@@ -20,27 +20,29 @@ module Network.PushNotify.Mpns.Types
     ) where
 
 import Network.PushNotify.Mpns.Constants
+import Network.TLS                  (PrivateKey)
+import Data.Certificate.X509        (X509)
 import Data.Default
 import Data.Text
 import Text.XML
 import Control.Monad.Writer
-import qualified Control.Exception as CE
+import qualified Control.Exception  as CE
 
--- | 'MPNSAppConfig' represents the main necessary information for sending notifications through MPNS.
+-- | 'MPNSConfig' represents the main necessary information for sending notifications through MPNS.
 -- If it is not necessary a secure connection, the default value can be used.
-data MPNSAppConfig = MPNSAppConfig{
-        numRet       :: Int    -- ^ Number of attemps to send the message to the server.
-    ,   useSecure    :: Bool   -- ^ To set a secure connection (HTTPS).
-    ,   certificate  :: String -- ^ Certificate (only necessary for secure connections).
-    ,   privateKey   :: String -- ^ Private key (only necessary for secure connections).
+data MPNSConfig = MPNSConfig{
+        numRet          :: Int        -- ^ Number of attemps to send the message to the server.
+    ,   useSecure       :: Bool       -- ^ To set a secure connection (HTTPS).
+    ,   mpnsCertificate :: X509       -- ^ Certificate (only necessary for secure connections).
+    ,   mpnsPrivatekey  :: PrivateKey -- ^ Private key (only necessary for secure connections).
     }   deriving Show
 
-instance Default MPNSAppConfig where
-    def = MPNSAppConfig{
-        numRet      = 5
-    ,   useSecure   = False
-    ,   certificate = ""
-    ,   privateKey  = ""
+instance Default MPNSConfig where
+    def = MPNSConfig{
+        numRet          = 5
+    ,   useSecure       = False
+    ,   mpnsCertificate = undefined
+    ,   mpnsPrivatekey  = undefined
     }
 
 -- | 'DeviceURI' is an unique identifier of an app/device, provided by MPNS.

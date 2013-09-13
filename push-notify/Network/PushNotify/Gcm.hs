@@ -7,7 +7,7 @@ module Network.PushNotify.Gcm
     -- * GCM Service
       sendGCM
     -- * GCM Settings
-    , GCMAppConfig(..)
+    , GCMHttpConfig(..)
     , RegId
     -- * GCM Messages
     , GCMmessage(..)

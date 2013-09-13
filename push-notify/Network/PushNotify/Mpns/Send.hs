@@ -23,7 +23,6 @@ import Control.Monad.Trans.Resource (MonadResource,runResourceT)
 import Control.Retry
 import Network.HTTP.Types
 import Network.HTTP.Conduit
-import Network.TLS.Extra            (fileReadCertificate,fileReadPrivateKey)
 
 retrySettingsMPNS = RetrySettings {
     backoff     = True
@@ -32,7 +31,7 @@ retrySettingsMPNS = RetrySettings {
 }
 
 -- | 'sendMPNS' sends the message to a MPNS Server.
-sendMPNS :: Manager -> MPNSAppConfig -> MPNSmessage -> IO MPNSresult
+sendMPNS :: Manager -> MPNSConfig -> MPNSmessage -> IO MPNSresult
 sendMPNS manager cnfg msg = do
                         asyncs  <- mapM (async . send manager cnfg msg) $ deviceURIs msg
                         results <- mapM waitCatch asyncs
@@ -46,16 +45,14 @@ sendMPNS manager cnfg msg = do
                         isRight (Right _) = True
                         isRight (Left  _) = False
 
-send :: Manager -> MPNSAppConfig -> MPNSmessage -> DeviceURI -> IO MPNSinfo
+send :: Manager -> MPNSConfig -> MPNSmessage -> DeviceURI -> IO MPNSinfo
 send manager cnfg msg deviceUri = runResourceT $ do
     req' <- liftIO $ case useSecure cnfg of
                         False   -> parseUrl $ unpack deviceUri
                         True    -> do
-                                     cert <- fileReadCertificate $ certificate cnfg
-                                     key  <- fileReadPrivateKey  $ privateKey  cnfg
                                      r    <- (parseUrl $ unpack deviceUri)
                                      return r{
-                                             clientCertificates = [(cert, Just key)]
+                                             clientCertificates = [(mpnsCertificate cnfg, Just (mpnsPrivatekey  cnfg))]
                                          ,   secure             = True }
     let valueBS  = renderLBS def $ restXML msg
         interval = case target msg of

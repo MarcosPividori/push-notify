@@ -8,6 +8,7 @@ module Network.PushNotify.Apns.Send
     ( sendAPNS
     , startAPNS
     , closeAPNS
+    , withAPNS
     , feedBackAPNS
     ) where
 
@@ -36,7 +37,7 @@ import qualified Crypto.Random.AESCtr   as RNG
 import Network
 import Network.Socket.Internal          (PortNumber(PortNum))
 import Network.TLS
-import Network.TLS.Extra                (fileReadCertificate,fileReadPrivateKey,ciphersuite_all)
+import Network.TLS.Extra                (ciphersuite_all)
 import System.Timeout
 
 
@@ -56,10 +57,8 @@ connParams cert privateKey = defaultParamsClient{
                    }
 
 -- 'connectAPNS' starts a secure connection with APNS servers.
-connectAPNS :: APNSAppConfig -> IO Context
+connectAPNS :: APNSConfig -> IO Context
 connectAPNS config = do
-        cert    <- fileReadCertificate $ certificate config
-        key     <- fileReadPrivateKey $ privateKey config
         handle  <- case environment config of
                     Development -> connectTo cDEVELOPMENT_URL
                                            $ PortNumber $ fromInteger cDEVELOPMENT_PORT
@@ -68,12 +67,12 @@ connectAPNS config = do
                     Local       -> connectTo cLOCAL_URL
                                            $ PortNumber $ fromInteger cLOCAL_PORT
         rng     <- RNG.makeSystem
-        ctx     <- contextNewOnHandle handle (connParams cert key) rng
+        ctx     <- contextNewOnHandle handle (connParams (apnsCertificate config) (apnsPrivateKey config)) rng
         handshake ctx
         return ctx
 
 -- | 'startAPNS' starts the APNS service.
-startAPNS :: APNSAppConfig -> IO APNSManager
+startAPNS :: APNSConfig -> IO APNSManager
 startAPNS config = do
         c       <- newTChanIO
         ref     <- newIORef $ Just ()
@@ -112,7 +111,7 @@ sendAPNS m msg = do
         return $ APNSresult success fail
 
 -- 'apnsWorker' starts the main worker thread.
-apnsWorker :: APNSAppConfig -> TChan (MVar (Maybe (Chan Int,Int)) , APNSmessage) -> IO ()
+apnsWorker :: APNSConfig -> TChan (MVar (Maybe (Chan Int,Int)) , APNSmessage) -> IO ()
 apnsWorker config requestChan = do
         ctx        <- connectAPNS config
         errorChan  <- newChan -- new Error Channel.
@@ -208,13 +207,13 @@ createPut msg ctime dst identifier = do
             putWord16be $ convert $ LB.length bpayload
             putLazyByteString bpayload
 
-
+-- | 'withAPNS' creates a new manager, uses it in the provided function, and then releases it.
+withAPNS :: APNSConfig -> (APNSManager -> IO a) -> IO a
+withAPNS confg fun = CE.bracket (startAPNS confg) closeAPNS fun
 
 -- 'connectFeedBackAPNS' starts a secure connection with Feedback service.
-connectFeedBackAPNS :: APNSAppConfig -> IO Context
+connectFeedBackAPNS :: APNSConfig -> IO Context
 connectFeedBackAPNS config = do
-        cert    <- fileReadCertificate $ certificate config
-        key     <- fileReadPrivateKey $ privateKey config
         handle  <- case environment config of
                     Development -> connectTo cDEVELOPMENT_FEEDBACK_URL
                                            $ PortNumber $ fromInteger cDEVELOPMENT_FEEDBACK_PORT
@@ -223,12 +222,12 @@ connectFeedBackAPNS config = do
                     Local       -> connectTo cLOCAL_FEEDBACK_URL
                                            $ PortNumber $ fromInteger cLOCAL_FEEDBACK_PORT
         rng     <- RNG.makeSystem
-        ctx     <- contextNewOnHandle handle (connParams cert key) rng
+        ctx     <- contextNewOnHandle handle (connParams (apnsCertificate config) (apnsPrivateKey config)) rng
         handshake ctx
         return ctx
 
 -- | 'feedBackAPNS' connects to the Feedback service.
-feedBackAPNS :: APNSAppConfig -> IO APNSFeedBackresult
+feedBackAPNS :: APNSConfig -> IO APNSFeedBackresult
 feedBackAPNS config = do
         ctx     <- connectFeedBackAPNS config
         var     <- newEmptyMVar
