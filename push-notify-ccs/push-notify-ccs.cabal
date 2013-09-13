@@ -36,6 +36,7 @@ library
                    , network              >=2.4
                    , pontarius-xmpp       >=0.3
                    , push-notify          >=0.1
+                   , retry                >=0.3
                    , stm                  >=2.3
                    , text                 >=0.11
                    , tls                  >=1.1.5
