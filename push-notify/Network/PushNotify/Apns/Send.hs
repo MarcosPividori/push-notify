@@ -19,6 +19,7 @@ import Control.Concurrent
 import Control.Concurrent.Async
 import Control.Concurrent.STM.TChan
 import Control.Monad.STM
+import Control.Retry
 import Data.Certificate.X509            (X509)
 import Data.Convertible                 (convert)
 import Data.Default
@@ -39,7 +40,6 @@ import Network.Socket.Internal          (PortNumber(PortNum))
 import Network.TLS
 import Network.TLS.Extra                (ciphersuite_all)
 import System.Timeout
-
 
 connParams :: X509 -> PrivateKey -> Params
 connParams cert privateKey = defaultParamsClient{
@@ -113,7 +113,7 @@ sendAPNS m msg = do
 -- 'apnsWorker' starts the main worker thread.
 apnsWorker :: APNSConfig -> TChan (MVar (Maybe (Chan Int,Int)) , APNSmessage) -> IO ()
 apnsWorker config requestChan = do
-        ctx        <- connectAPNS config
+        ctx        <- recoverAll (apnsRetrySettings config) $ connectAPNS config -- retry to connect to APNS server
         errorChan  <- newChan -- new Error Channel.
         lock       <- newMVar ()
         
