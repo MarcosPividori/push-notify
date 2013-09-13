@@ -5,6 +5,7 @@
 -- | This Module define the main data types for sending Push Notifications through Cloud Connection Server (GCM).
 module Network.PushNotify.Ccs.Types
     ( CCSManager(..)
+    , GCMCcsConfig(..)
     , fromGCMtoCCS
     ) where
 
@@ -29,6 +30,12 @@ data CCSManager = CCSManager
     ,   mWorkerID   :: ThreadId
     -- ^ Worker thread ID.
     }
+
+-- | 'GCMCcsConfig' represents the main necessary information for sending notifications through CCS.
+data GCMCcsConfig = GCMCcsConfig
+    {   aPiKey   :: Text -- ^ Api key provided by Google.
+    ,   senderID :: Text -- ^ Sender ID provided by Google.
+    }   deriving Show
 
 -- 'fromGCMtoCCS' converts a Gcm message to a proper CCS message.
 fromGCMtoCCS :: RegId -> Text -> GCMmessage -> Value

@@ -15,15 +15,14 @@ module Network.PushNotify.Ccs
     , closeCCS
     , sendCCS
     -- * CCS Settings
-    , GCMAppConfig(..)
-    , RegId
+    , GCMCcsConfig(..)
+    -- * CCS Utilities
+    , withCCS
+    , withCCS'
     , CCSManager
-    -- * CCS Messages
-    , GCMmessage(..)
-    -- * CCS Results
-    , GCMresult(..)
+    , module Network.PushNotify.Gcm.Types
     ) where
 
+import Network.PushNotify.Gcm.Types
 import Network.PushNotify.Ccs.Types
 import Network.PushNotify.Ccs.Send
-import Network.PushNotify.Gcm.Types

@@ -7,6 +7,8 @@ module Network.PushNotify.Ccs.Send
     ( startCCS
     , closeCCS
     , sendCCS
+    , withCCS
+    , withCCS'
     ) where
 
 import Network.PushNotify.Ccs.Constants
@@ -50,7 +52,7 @@ import GHC.IO.Handle
 import System.Log.Logger
 
 -- 'connectCCS' starts a secure connection with CCS servers.
-connectCCS :: GCMAppConfig -> IO Session
+connectCCS :: GCMCcsConfig -> IO Session
 connectCCS config = do
     let getStreamHandle = lift $ do
             hdl <- connectTo (unpack cCCS_URL) (PortNumber (fromIntegral cCCS_PORT))
@@ -73,7 +75,7 @@ connectCCS config = do
                                 , streamClose   = bye ctx }
     result <- session
                 (unpack cCCS_URL)
-                (Just ( \_ -> [plain (senderID config <> "@" <> cCCS_URL) Nothing (apiKey config) ] , Nothing))
+                (Just ( \_ -> [plain (senderID config <> "@" <> cCCS_URL) Nothing (aPiKey config) ] , Nothing))
                 def{ sessionStreamConfiguration = def{
                          connectionDetails = UseConnection getStreamHandle }
                    }
@@ -82,7 +84,7 @@ connectCCS config = do
         Left e  -> fail $ "XmppFailure: " ++ (show e)
 
 -- | 'startCCS' starts the CCS service, which means starting a worker thread which maintains a connection with CCS servers.
-startCCS :: GCMAppConfig                 -- ^ The main configuration for the GCM service.
+startCCS :: GCMCcsConfig                 -- ^ The main configuration for the GCM service.
          -> (RegId -> Value -> IO ())    -- ^ A callback function to be called each time a message arrives from a device.
          -> IO CCSManager
 startCCS config newMessageCallbackFunction = do
@@ -93,7 +95,7 @@ startCCS config newMessageCallbackFunction = do
         return $ CCSManager ref c tID
 
 -- Main worker thread.
-ccsWorker :: GCMAppConfig -> TChan (Chan GCMresult , MVar (Chan ()), GCMmessage) -> (RegId -> Value -> IO ()) -> IO ()
+ccsWorker :: GCMCcsConfig -> TChan (Chan GCMresult , MVar (Chan ()), GCMmessage) -> (RegId -> Value -> IO ()) -> IO ()
 ccsWorker config requestChan callBackF = do
         sess      <- connectCCS config
         cont      <- newIORef 1000
@@ -280,3 +282,13 @@ sendCCS man msg = do
                                                 (return def)
                                                 (registration_ids msg)
 
+-- | 'withCCS' creates a new manager, uses it in the provided function, and then releases it.
+--
+-- (The second argument is a callback function to be called each time a message arrives from a device).
+withCCS :: GCMCcsConfig -> (RegId -> Value -> IO ()) -> (CCSManager -> IO a) -> IO a
+withCCS confg callback fun = CE.bracket (startCCS confg callback) closeCCS fun
+
+-- | 'withCCS'' creates a new manager, uses it in the provided function, and then releases it 
+-- (ignores messages that arrive from a device).
+withCCS' :: GCMCcsConfig -> (CCSManager -> IO a) -> IO a
+withCCS' confg fun = withCCS confg (\_ _ -> return ()) fun
