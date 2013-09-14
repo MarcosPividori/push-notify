@@ -1,4 +1,5 @@
 -- | This Module define the main functions to send Push Notifications.
+{-# LANGUAGE ScopedTypeVariables #-}
 module Network.PushNotify.General.Send(
     startPushService
   , closePushService
@@ -81,51 +82,46 @@ isMPNS _        = False
 -- | 'sendPush' sends messages to the appropiate Push Servers.
 sendPush :: PushManager -> PushNotification -> [Device] -> IO PushResult
 sendPush man notif devices = do
-                let
-                    gcmDevices  = map forgetConst $ filter isGCM  devices
-                    apnsDevices = map forgetConst $ filter isAPNS devices
-                    mpnsDevices = map forgetConst $ filter isMPNS devices
-                    pConfig     = serviceConfig man
-                    config      = pushConfig pConfig
+    let gcmDevices  = map forgetConst $ filter isGCM  devices
+        apnsDevices = map forgetConst $ filter isAPNS devices
+        mpnsDevices = map forgetConst $ filter isMPNS devices
+        pConfig     = serviceConfig man
+        config      = pushConfig pConfig
 
-                r1 <- case (gcmDevices , gcmConfig config , gcmNotif  notif , httpManager man , ccsManager man) of
+    r1 <- case (gcmDevices , gcmConfig config , gcmNotif  notif , httpManager man , ccsManager man) of
+              (_:_,Just (Ccs cnf),Just msg,_,Just m)   -> do
+                            let msg' = msg{registration_ids = gcmDevices}
+                            CE.catch (sendCCS' m msg')
+                              (\e -> let _ = e :: CE.SomeException in
+                                     case httpManager man of
+                                       Just hman -> sendGCM' hman def{apiKey = aPiKey cnf} msg'
+                                       _ -> return $ exceptionResult (map (\d -> (GCM d,Right e)) $ registration_ids msg') )
 
-                          (_:_,Just (Ccs cnf),Just msg,_,Just m)   -> do
-                                        let msg' = msg{registration_ids = gcmDevices}
-                                        res <- CE.catch (sendCCS m msg')
-                                                (\e -> let _ = e :: CE.SomeException in
-                                                         case httpManager man of
-                                                           Just hman -> sendGCM hman def{apiKey = aPiKey cnf} msg'
-                                                           _ -> throw e)
-                                        return $ toPushResult res
+              (_:_,Just (Http cnf),Just msg,Just m,_ ) -> sendGCM' m cnf msg{registration_ids = gcmDevices}
 
-                          (_:_,Just (Http cnf),Just msg,Just m,_ ) -> do
-                                        res <- sendGCM m cnf msg{registration_ids = gcmDevices}
-                                        return $ toPushResult res
+              _                                        -> return def
 
-                          _                                        -> return def
+    r2 <- case (apnsDevices , apnsNotif notif , apnsManager man) of
+              (_:_,Just msg,Just m) -> sendAPNS' m msg{deviceTokens = apnsDevices}
+              _                     -> return def
 
-                r2 <- case (apnsDevices , apnsNotif notif , apnsManager man) of
+    r3 <- case (mpnsDevices , mpnsConfig config , mpnsNotif notif , httpManager man) of
+              (_:_,Just cnf,Just msg,Just m) -> sendMPNS' m cnf msg{deviceURIs = mpnsDevices}
+              _                              -> return def
 
-                          (_:_,Just msg,Just m) -> do
-                                        res <- sendAPNS m msg{deviceTokens = apnsDevices}
-                                        return $ toPushResult res
+    let res = r1 <> r2 <> r3
 
-                          _                     -> return def
+    when (unRegistered res /= []) $ mapM_ (unRegisteredCallback pConfig) (unRegistered res)
 
-                r3 <- case (mpnsDevices , mpnsConfig config , mpnsNotif notif , httpManager man) of
+    when (newIds res /= [])       $ mapM_ (newIdCallback        pConfig) (newIds res)
 
-                          (_:_,Just cnf,Just msg,Just m) -> do
-                                        res <- sendMPNS m cnf msg{deviceURIs = mpnsDevices}
-                                        return $ toPushResult res
+    return res
 
-                          _                              -> return def
-
-                let res = r1 <> r2 <> r3
-
-                when (unRegistered res /= []) $ mapM_ (unRegisteredCallback pConfig) (unRegistered res)
-
-                when (newIds res /= [])       $ mapM_ (newIdCallback        pConfig) (newIds res)
-
-                return res
-
+    where
+      sendCCS'  a b   = sendCCS a b >>= return . toPushResult
+      sendMPNS' a b c = sendMPNS a b c >>= return . toPushResult
+      sendGCM'  a b c = CE.catch (sendGCM a b c >>= return . toPushResult)
+                        (\(e :: CE.SomeException) -> return $ exceptionResult (map (\d -> (GCM d,Right e)) $ registration_ids c))
+      sendAPNS' a b   = CE.catch (sendAPNS a b >>= return . toPushResult)
+                        (\(e :: CE.SomeException) -> return $ exceptionResult (map (\d -> (APNS d,Right e)) $ deviceTokens b))
+      exceptionResult l = PushResult [] l [] [] []
