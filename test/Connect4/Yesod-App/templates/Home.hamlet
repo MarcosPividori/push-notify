@@ -1,20 +1,19 @@
-<meta http-equiv="refresh" content="5" >
-$maybe _ <- maid
- <p> <b>Your current auth ID:</b> #{show maid} <a href=@{AuthR LogoutR}>Logout</a>
- <p> <b>Playing against:</b> #{show user2}
- <p> <b>Turn:</b> #{show turn}
- <p> <a href=@{FromWebR Cancel}>Finish
-  $forall row <- rows
-   <div class="row" id=#{show row}>
-    $forall celd <- row  
-      <div class="celd" name=#{fst celd}>
-        <a href=@{FromWebR (Movement $ fst celd)}>
-           $if snd celd == 1
-              <img src=@{StaticR red_png} height="75px" width="75px">
-           $elseif snd celd == minusone
-              <img src=@{StaticR yellow_png} height="75px" width="75px">
-           $else
-              <img src=@{StaticR empty_png} #updategrid height="75px" width="75px">
-$nothing
-    <p>
-        <a href=@{AuthR LoginR}>Go to the login page
+<html1>
+        <div id="authid"><b>#{user1} <a href=@{AuthR LogoutR}>Logout </a> </b>
+        <div id="grid">
+           <div id="info">
+           <a id="cancel" href="#" onclick="cancel();"><b>Cancel</b></a>
+           <div id="grid1">
+        <div id="users">
+          <div id="startgame">
+            <p> <b>Invite a user to play:</b> <a id="refresh" href="#" onclick="refreshM();"><b>Refresh</b></a>
+            <div id="users1">
+            <p><input type="submit" value="Start" style="font-weight:bold;" onclick="startM();">
+          <div id="messages">
+            <p> <b>Messages:</b> <a id="clear" href="#" onclick="clear1();"><b>Clear</b></a>
+            <div id="history">
+            <div id="destin">
+            <input type="text" id="msg">
+            <p><input type="submit" value="Send" style="font-weight:bold;" onclick="sendM();">
+        <div id="offline">
+            You are offline. <a href=@{RootR}><b>Restart</b></a>
