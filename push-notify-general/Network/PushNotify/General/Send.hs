@@ -11,13 +11,13 @@ import Network.PushNotify.General.Types
 import Network.PushNotify.General.YesodPushApp
 
 import Yesod
-import Data.Text                        (Text)
+import Data.Text               (Text)
 import Data.Maybe
 import Data.Monoid
 import Data.Default
 import Control.Concurrent
 import Control.Monad
-import Control.Exception as CE
+import Control.Exception       as CE
 import Network.HTTP.Conduit
 import Network.PushNotify.Gcm
 import Network.PushNotify.Apns
