@@ -15,7 +15,6 @@ import Control.Exception                    (fromException)
 import Control.Monad                        (forM_)
 import Control.Monad.IO.Class               (liftIO)
 import Control.Concurrent.Chan              (Chan, writeChan)
-import Network.Wai.EventSource              (ServerEvent (..))
 import Blaze.ByteString.Builder.Char.Utf8   (fromText)
 import qualified Data.Text                  as T
 import qualified Data.Text.IO               as T
@@ -36,19 +35,19 @@ numClients = HM.size
 clientExists :: Text -> WebUsers -> Bool
 clientExists = HM.member
 
-getClient :: Text -> WebUsers -> Maybe (Chan ServerEvent,POSIXTime)
+getClient :: Text -> WebUsers -> Maybe (Chan MsgFromDevice,POSIXTime)
 getClient = HM.lookup
 
-addClient :: Text -> Chan ServerEvent -> POSIXTime -> WebUsers -> WebUsers
+addClient :: Text -> Chan MsgFromDevice -> POSIXTime -> WebUsers -> WebUsers
 addClient t a1 a2 = HM.insert t (a1,a2)
 
 getClients :: WebUsers -> [Text]
 getClients = HM.keys
 
-getClientsElems :: WebUsers -> [(Chan ServerEvent,POSIXTime)]
+getClientsElems :: WebUsers -> [(Chan MsgFromDevice,POSIXTime)]
 getClientsElems = HM.elems
 
-filterClients :: ((Chan ServerEvent,POSIXTime) -> Bool) -> WebUsers -> WebUsers
+filterClients :: ((Chan MsgFromDevice,POSIXTime) -> Bool) -> WebUsers -> WebUsers
 filterClients = HM.filter
 
 removeClient :: Text -> WebUsers -> WebUsers

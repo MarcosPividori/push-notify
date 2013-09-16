@@ -10,11 +10,10 @@ import Connect4
 import Data.Text
 import Data.Time.Clock.POSIX
 import Control.Concurrent.Chan (Chan)
-import Network.Wai.EventSource (ServerEvent)
 import qualified Data.HashMap.Strict as HM
 
-data Identifier = Dev Device | Web (Chan ServerEvent) deriving Eq
-type WebUsers   = HM.HashMap Text (Chan ServerEvent,POSIXTime)
+data Identifier = Dev Device | Web (Chan MsgFromDevice) deriving Eq
+type WebUsers   = HM.HashMap Text (Chan MsgFromDevice,POSIXTime)
 data MsgFromDevice = Cancel | Movement Int | NewGame Text | Winner Text | NewMessage Text Text | Offline deriving (Show,Read,Eq)
 
 derivePersistField "Device"

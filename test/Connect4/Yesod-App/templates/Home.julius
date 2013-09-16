@@ -19,12 +19,10 @@ var user1 = "";
 var user2 = "";
 var numUser = 0;
 var playing;
-var src = new EventSource("@{ReceiveR}");
 var radios = [];
 var dests = [];
 
-src.onmessage = function(event) {
-        obj = JSON.parse(event.data);
+function newMessage(obj) {
         if(obj["NewMessage"] != null){
             var p = document.createElement('p');
             p.appendChild(document.createTextNode(obj["NewMessage"]));
@@ -55,7 +53,7 @@ src.onmessage = function(event) {
             $('#grid').hide();
             $('#users').hide();
         }
-    };
+}
 
 function movement(pos,player){
     var im;
@@ -283,6 +281,12 @@ window.alert = function(msg){
     alertCloseButton.style.visibility = "visible";
     alertCloseButton.onclick = closeAlertBox;
 };
+
+(function poll(){
+    $.ajax({ url: "@{ReceiveR}", success: function(data){
+        newMessage(data);
+    }, dataType: "json", complete: poll, timeout: 0 });
+})();
 
 $(document).ready(function () {
     $('#offline').hide();
