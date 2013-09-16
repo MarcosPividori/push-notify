@@ -1,4 +1,4 @@
-{-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE OverloadedStrings , DeriveGeneric #-}
 -- | This Module defines the main data types for the Push Service.
 module Network.PushNotify.General.Types
     ( -- * Push Settings     
@@ -29,8 +29,12 @@ import qualified Data.Map               as M
 import qualified Data.ByteString.Lazy   as BL
 import qualified Data.ByteString        as BS
 import qualified Data.Text.Encoding     as E
+import qualified Data.HashMap.Strict    as HM
+import qualified Data.HashSet           as HS
+import GHC.Generics  (Generic)
 import Data.Aeson
 import Data.Default
+import Data.Hashable
 import Data.List
 import Data.Monoid
 import Data.Text     (Text,pack)
@@ -40,7 +44,9 @@ import Text.XML
 data Device = GCM  RegId        -- ^ An Android app.
             | APNS DeviceToken  -- ^ An iOS app.
             | MPNS DeviceURI    -- ^ A WPhone app.
-            deriving (Show, Read, Eq)
+            deriving (Show, Read, Eq, Generic)
+
+instance Hashable Device
 
 -- | General notification to be sent.
 data PushNotification = PushNotification {
@@ -58,7 +64,7 @@ instance Default PushNotification where
 --
 -- For MPNS, data will be XML-labeled as \"jsonData\".
 generalNotif :: Object -> IO PushNotification
-generalNotif dat = do 
+generalNotif dat = do
     let msg = PushNotification {
             apnsNotif = Just def{ rest        = Just dat}
         ,   gcmNotif  = Just def{ data_object = Just dat}
@@ -124,21 +130,22 @@ data PushManager = PushManager {
 
 -- | PushResult represents a general result after communicating with a Push Server.
 data PushResult = PushResult {
-        successful   :: [Device] -- ^ Notifications that were successfully sent.
-    ,   failed       :: [(Device,Either Text SomeException)] -- ^ Notifications that were not successfully sent.
-    ,   toResend     :: [Device] -- ^ Failed notifications that you need to resend,
-                                 -- because servers were not available or there was a problem with the connection.
-    ,   unRegistered :: [Device] -- ^ List of unregistered devices.
-    ,   newIds       :: [(Device,Device)] -- ^ List of devices which have changed their identifiers.
+        successful   :: HS.HashSet Device -- ^ Notifications that were successfully sent.
+    ,   failed       :: HM.HashMap Device (Either Text SomeException) -- ^ Notifications that were not successfully sent.
+    ,   toResend     :: HS.HashSet Device -- ^ Failed notifications that you need to resend,
+                                          -- because servers were not available or there was a problem with the connection.
+    ,   unRegistered :: HS.HashSet Device -- ^ Set of unregistered devices.
+    ,   newIds       :: HM.HashMap Device Device -- ^ Map of devices which have changed their identifiers. (old -> new)
     } deriving Show
 
 instance Default PushResult where
-    def = PushResult [] [] [] [] []
+    def = PushResult HS.empty HM.empty HS.empty HS.empty HM.empty
 
 instance Monoid PushResult where
     mempty = def
-    mappend (PushResult a1 b1 c1 d1 e1) (PushResult a2 b2 c2 d2 e2) = PushResult (a1 ++ a2) (b1 ++ b2) (c1 ++ c2) (d1 ++ d2) (e1 ++ e2)
-
+    mappend (PushResult a1 b1 c1 d1 e1)
+            (PushResult a2 b2 c2 d2 e2) = PushResult (HS.union a1 a2)  (HM.union b1 b2)
+                                                     (HS.union  c1 c2) (HS.union  d1 d2) (HM.union e1 e2)
 
 -- | This class represent the translation from a specific service's result into a general Push result.
 class IsPushResult a where
@@ -147,39 +154,40 @@ class IsPushResult a where
 
 instance IsPushResult GCMresult where
     toPushResult r = def {
-        successful   = map (GCM . fst) $ messagesIds r
-    ,   failed       = map (\(x,y) -> (GCM x,Left y))                   (errorRest         r)
-                    ++ map (\x     -> (GCM x,Left "UnregisteredError")) (errorUnRegistered r)
-                    ++ map (\x     -> (GCM x,Left "InternalError"))     (errorToReSend     r)
-    ,   toResend     = map GCM $ errorToReSend r
-    ,   unRegistered = map GCM $ errorUnRegistered r ++ (map fst $ errorRest r)
+        successful   = HS.map GCM $ HS.fromList $ HM.keys $ messagesIds r
+    ,   failed       = HM.fromList $ map (\(x,y) -> (GCM x,Left y)) (HM.toList $ errorRest r)
+                    <> map (\x -> (GCM x,Left "UnregisteredError")) (HS.toList $ errorUnRegistered r)
+                    <> map (\x -> (GCM x,Left "InternalError"))     (HS.toList $ errorToReSend     r)
+    ,   toResend     = HS.map GCM $ errorToReSend r
+    ,   unRegistered = HS.map GCM $ errorUnRegistered r <> (HS.fromList . HM.keys . errorRest) r
     -- I decide to unregister all regId with error different to Unregistered or Unavailable. (errorRest)
     -- Because these are non-recoverable error.
-    ,   newIds       = map (\(x,y) -> (GCM x,GCM y)) $ newRegids r
+    ,   newIds       = HM.fromList $ map (\(x,y) -> (GCM x,GCM y)) $ HM.toList $ newRegids r
     }
 
 
 instance IsPushResult APNSresult where
     toPushResult r = def {
-        successful   = map APNS $ successfulTokens r
-    ,   failed       = map (\x -> (APNS x , Left "CommunicatingError")) $ toReSendTokens r
-    ,   toResend     = map APNS $ toReSendTokens r
+        successful   = HS.map APNS $ successfulTokens r
+    ,   failed       = HM.fromList $ map (\x -> (APNS x , Left "CommunicatingError")) $ HS.toList $ toReSendTokens r
+    ,   toResend     = HS.map APNS $ toReSendTokens r
     }
 
 instance IsPushResult APNSFeedBackresult where
     toPushResult r = def {
-        unRegistered = map (APNS . fst) $ unRegisteredTokens r
+        unRegistered = HS.fromList $ map APNS $ HM.keys $ unRegisteredTokens r
     }
 
 
 instance IsPushResult MPNSresult where
-    toPushResult r = let (successList,failureList) = partition ((== Just Received) . notificationStatus . snd ) $ successfullResults r
+    toPushResult r = let (successList,failureList) = partition ((== Just Received) . notificationStatus . snd ) $ 
+                                                               HM.toList $ successfullResults r
                      in def {
-        successful   = map (MPNS . fst) successList
-    ,   failed       = map (\(x,y) -> (MPNS x , Right y)) (errorException r)
-                    ++ map (\(x,y) -> (MPNS x , Left $ pack $ show $ notificationStatus y)) failureList
-    ,   toResend     = map (MPNS . fst) . filter (error500 . snd) $ errorException r
-    ,   unRegistered = map (MPNS . fst) . filter ((== Just Expired) . subscriptionStatus . snd ) $ successfullResults r
+        successful   = HS.fromList $ map (MPNS . fst) successList
+    ,   failed       = (HM.fromList $ map (\(x,y) -> (MPNS x , Right y)) (HM.toList $ errorException r))
+                    <> (HM.fromList $ map (\(x,y) -> (MPNS x , Left $ pack $ show $ notificationStatus y)) failureList)
+    ,   toResend     = HS.map MPNS . HS.fromList . HM.keys . HM.filter error500 $ errorException r
+    ,   unRegistered = HS.map MPNS . HS.fromList . HM.keys . HM.filter ((== Just Expired) . subscriptionStatus) $ successfullResults r
     } where
         error500 :: SomeException -> Bool
         error500 e = case (fromException e) :: Maybe HttpException of

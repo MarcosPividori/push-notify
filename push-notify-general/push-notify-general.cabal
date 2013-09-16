@@ -33,6 +33,8 @@ library
                    , bytestring           >=0.9
                    , containers           >=0.4
                    , data-default         >=0.5
+                   , ghc-prim
+                   , hashable             >=1.2
                    , http-conduit         >=1.9
                    , http-types           >=0.8
                    , push-notify          >=0.1

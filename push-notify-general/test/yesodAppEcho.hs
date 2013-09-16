@@ -16,6 +16,7 @@ import Data.IORef
 import Data.Text                      (Text,pack)
 import qualified Data.Map             as M
 import qualified Data.HashMap.Strict  as HM
+import qualified Data.HashSet         as HS
 import Text.Hamlet.XML
 import Text.XML
 import Control.Applicative
@@ -117,7 +118,7 @@ main = do
                                                                          Document (Prologue [] Nothing []) (xmlMessage msg) [] }
                                                            , apnsNotif  = Just $ def {rest = Just (HM.fromList
                                                                          [(pack "Message" .= msg)]) }  }
-                                         sendPush man message [d]
+                                         sendPush man message $ HS.singleton d
                                          return ()
 
        handleNewId pool (old,new) = do

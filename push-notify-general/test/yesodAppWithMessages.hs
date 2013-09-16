@@ -21,6 +21,7 @@ import Data.Text.Internal             (empty)
 import Data.Text                      (Text,pack,unpack,append,isPrefixOf)
 import qualified Control.Exception    as CE
 import qualified Data.HashMap.Strict  as HM
+import qualified Data.HashSet         as HS
 import qualified Data.Text            as T
 import qualified Data.Map             as M
 import Text.XML
@@ -132,7 +133,7 @@ postFromWebR = do
                      ,   mpnsNotif = Just $ def {target = Toast , restXML = Document (Prologue [] Nothing []) (xmlMessage msg) []}
                      }
             result <- liftIO $ CE.catch -- I catch IO exceptions to avoid showing unsecure information.
-                        (sendPush man message regIdsList)
+                        (sendPush man message (HS.fromList regIdsList))
                         (\(e :: CE.SomeException) -> fail "Problem communicating with Push Servers")
             handleResult message result 5
     else do
@@ -153,12 +154,12 @@ postFromWebR = do
 -- Handle the result of the communication with the Push Servers.
 handleResult :: PushNotification -> PushResult -> Int -> Handler ()
 handleResult msg res n = do
-                            handleFailed         $ failed   res
-                            handleToResend msg n $ toResend res
+                           handleFailed         $ failed   res
+                           handleToResend msg n $ toResend res
 
 -- Handle the msg that failed, I decide to unregister devices when I get a 400 error trying to send them a notification.
-handleFailed :: [(Device,Either Text CE.SomeException)] -> Handler ()
-handleFailed list = let l = map fst $ filter (is400 . snd) list
+handleFailed :: HM.HashMap Device (Either Text CE.SomeException) -> Handler ()
+handleFailed list = let l = HM.keys $ HM.filter is400 list
                     in if l /= []
                          then do
                                   let removeUnRegUser regid = runDB $ deleteBy $ UniqueDevice regid
@@ -171,18 +172,18 @@ handleFailed list = let l = map fst $ filter (is400 . snd) list
                                               _                                     -> False
 
 -- Handle the regIds that I need to resend because of an internal server error. (Unavailable error)
-handleToResend :: PushNotification -> Int -> [Device] -> Handler ()
-handleToResend msg 0 list = return ()
-handleToResend msg n list = do
-                    $(logInfo) ("\tHandling ToReSend: "<>pack (show list)<>"\t")
-                    if list /= []
-                    then do
+handleToResend :: PushNotification -> Int -> HS.HashSet Device -> Handler ()
+handleToResend msg 0 set = return ()
+handleToResend msg n set = do
+                    $(logInfo) ("\tHandling ToReSend: "<>pack (show set)<>"\t")
+                    if HS.null set
+                    then return ()
+                    else do
                         Messages _ m <- getYesod
                         res <- liftIO $ CE.catch -- I catch IO exceptions to avoid showing unsecure information.
-                                    (sendPush m msg list)
-                                    (\(e :: CE.SomeException) -> fail "Problem communicating with GCM Server")
+                                    (sendPush m msg set)
+                                    (\(e :: CE.SomeException) -> fail "Problem communicating with Push Servers")
                         handleResult msg res (n-1)
-                    else return ()
 
 main :: IO ()
 main = do
@@ -263,7 +264,7 @@ main = do
                                           Just msg -> do
                                                         let message = def {gcmNotif  = Just $ def {
                                                                       data_object = Just (HM.fromList [(pack "Message" .= msg)]) }}
-                                                        sendPush man message [d]
+                                                        sendPush man message $ HS.singleton d
                                                         putStr ("\nNew message from device!:\n-User: " ++ show usr
                                                                 ++ "\n-Msg: " ++ show msg ++ "\n")
 
