@@ -16,6 +16,8 @@ module Network.PushNotify.Gcm.Types
 
 import Network.PushNotify.Gcm.Constants
 import Control.Monad.Writer
+import qualified Data.HashMap.Strict    as HM
+import qualified Data.HashSet           as HS
 import Data.Aeson.Types
 import Data.Default
 import Data.Monoid
@@ -38,9 +40,9 @@ type RegId = Text
 --
 --On the other hand, if you want to use the rest of specific aspects, you can find more information on GCM website.
 data GCMmessage = GCMmessage
-    {   registration_ids        :: [RegId]      -- ^ Destination.
+    {   registration_ids        :: HS.HashSet RegId -- ^ Destination.
     ,   collapse_key            :: Maybe Text
-    ,   data_object             :: Maybe Object -- ^ Main JSON data to be sent.
+    ,   data_object             :: Maybe Object     -- ^ Main JSON data to be sent.
     ,   delay_while_idle        :: Bool
     ,   time_to_live            :: Maybe Int
     ,   restricted_package_name :: Maybe Text
@@ -49,7 +51,7 @@ data GCMmessage = GCMmessage
 
 instance Default GCMmessage where
     def = GCMmessage {
-        registration_ids        = []
+        registration_ids        = HS.empty
     ,   collapse_key            = Nothing
     ,   data_object             = Nothing
     ,   delay_while_idle        = False
@@ -65,12 +67,13 @@ data GCMresult = GCMresult
     ,   success           :: Maybe Int       -- ^ Number of messages that were processed without an error.
     ,   failure           :: Maybe Int       -- ^ Number of messages that could not be processed.
     ,   canonical_ids     :: Maybe Int       -- ^ Number of results that contain a canonical registration ID.
-    ,   newRegids         :: [(RegId,RegId)] -- ^ RegIds that need to be replaced.
-    ,   messagesIds       :: [(RegId,Text)]  -- ^ Successful RegIds, and its \"message_id\".
-    ,   errorUnRegistered :: [RegId]         -- ^ Failed regIds that need to be removed.
-    ,   errorToReSend     :: [RegId]         -- ^ Failed regIds that is necessary to resend the message to,
-                                             -- because there was an internal problem in GCM servers.
-    ,   errorRest         :: [(RegId,Text)]  -- ^ Failed regIds with the rest of the possible errors (probably non-recoverable errors).
+    ,   newRegids         :: HM.HashMap RegId RegId -- ^ RegIds that need to be replaced.
+    ,   messagesIds       :: HM.HashMap RegId Text  -- ^ Successful RegIds, and its \"message_id\".
+    ,   errorUnRegistered :: HS.HashSet RegId       -- ^ Failed regIds that need to be removed.
+    ,   errorToReSend     :: HS.HashSet RegId       -- ^ Failed regIds that is necessary to resend the message to,
+                                                    -- because there was an internal problem in GCM servers.
+    ,   errorRest         :: HM.HashMap RegId Text  -- ^ Failed regIds with the rest of the possible errors
+                                                    -- (probably non-recoverable errors).
     } deriving Show
 
 instance Default GCMresult where
@@ -79,17 +82,18 @@ instance Default GCMresult where
     ,   success           = Nothing
     ,   failure           = Nothing
     ,   canonical_ids     = Nothing
-    ,   newRegids         = []
-    ,   messagesIds       = []
-    ,   errorUnRegistered = []
-    ,   errorToReSend     = []
-    ,   errorRest         = []
+    ,   newRegids         = HM.empty
+    ,   messagesIds       = HM.empty
+    ,   errorUnRegistered = HS.empty
+    ,   errorToReSend     = HS.empty
+    ,   errorRest         = HM.empty
     }
 
 instance Monoid GCMresult where
     mempty = def
     mappend (GCMresult _ x1 y1 z1 a1 b1 c1 d1 e1) (GCMresult _ x2 y2 z2 a2 b2 c2 d2 e2) =
-                        GCMresult Nothing (add x1 x2) (add y1 y2) (add z1 z2) (a1 ++ a2) (b1 ++ b2) (c1 ++ c2) (d1 ++ d2) (e1 ++ e2)
+                        GCMresult Nothing (add x1 x2) (add y1 y2) (add z1 z2) (HM.union a1 a2) 
+                                  (HM.union b1 b2) (HS.union c1 c2) (HS.union d1 d2) (HM.union e1 e2)
                         where
                               add x Nothing = x
                               add (Just n) (Just m) = Just (n+m)
@@ -106,7 +110,7 @@ ifNotDef label f msg = if f def /= f msg
 
 instance ToJSON GCMmessage where
     toJSON msg = object $ execWriter $ do
-                                         ifNotDef cREGISTRATION_IDS registration_ids msg
+                                         ifNotDef cREGISTRATION_IDS (HS.toList . registration_ids) msg
                                          ifNotDef cTIME_TO_LIVE time_to_live msg
                                          ifNotDef cDATA data_object msg
                                          ifNotDef cCOLLAPSE_KEY collapse_key msg

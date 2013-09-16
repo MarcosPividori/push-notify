@@ -19,15 +19,16 @@ module Network.PushNotify.Apns.Types
     ) where
 
 import Network.PushNotify.Apns.Constants
-import Network.TLS              (PrivateKey)
+import Network.TLS                          (PrivateKey)
 import Control.Concurrent
 import Control.Concurrent.STM.TChan
 import Control.Monad.Writer
 import Control.Retry
 import Data.Aeson.Types
-import Data.Certificate.X509    (X509)
+import Data.Certificate.X509                (X509)
 import Data.Default
-import Data.HashMap.Strict      (insert,HashMap)
+import qualified Data.HashMap.Strict        as HM
+import qualified Data.HashSet               as HS
 import Data.IORef
 import Data.Text
 import Data.Time.Clock
@@ -39,6 +40,8 @@ data Env = Development -- ^ Development environment (by Apple).
          deriving Show
 
 -- | 'APNSConfig' represents the main necessary information for sending notifications through APNS.
+--
+-- For loading the certificate and privateKey you can use: 'Network.TLS.Extra.fileReadCertificate' and 'Network.TLS.Extra.fileReadPrivateKey' .
 data APNSConfig = APNSConfig
     {   apnsCertificate   :: X509          -- ^ Certificate provided by Apple.
     ,   apnsPrivateKey    :: PrivateKey    -- ^ Private key provided by Apple.
@@ -73,7 +76,7 @@ type DeviceToken = Text
 
 -- | 'APNSmessage' represents a message to be sent through APNS.
 data APNSmessage = APNSmessage
-    {   deviceTokens :: [DeviceToken] -- ^ Destination.
+    {   deviceTokens :: HS.HashSet DeviceToken -- ^ Destination.
     ,   expiry       :: Maybe UTCTime -- ^ Identifies when the notification is no longer valid and can be discarded. 
     ,   alert        :: Either Text AlertDictionary -- ^ For the system to displays a standard alert.
     ,   badge        :: Maybe Int     -- ^ Number to display as the badge of the application icon.
@@ -83,7 +86,7 @@ data APNSmessage = APNSmessage
 
 instance Default APNSmessage where
     def = APNSmessage {
-        deviceTokens = []
+        deviceTokens = HS.empty
     ,   expiry       = Nothing
     ,   alert        = Left empty
     ,   badge        = Nothing
@@ -111,22 +114,22 @@ instance Default AlertDictionary where
 
 -- | 'APNSresult' represents information about messages after a communication with APNS Servers.
 data APNSresult = APNSresult
-    {   successfulTokens :: [DeviceToken]
-    ,   toReSendTokens   :: [DeviceToken] -- ^ Failed tokens that you need to resend the message to,
-                                          -- because there was a problem.
+    {   successfulTokens :: HS.HashSet DeviceToken
+    ,   toReSendTokens   :: HS.HashSet DeviceToken -- ^ Failed tokens that you need to resend the message to,
+                                               -- because there was a problem.
     } deriving Show
 
 instance Default APNSresult where
-    def = APNSresult [] []
+    def = APNSresult HS.empty HS.empty
 
 -- | 'APNSFeedBackresult' represents information after connecting with the Feedback service.
 data APNSFeedBackresult = APNSFeedBackresult
-    {   unRegisteredTokens :: [(DeviceToken,UTCTime)] -- ^ Devices tokens and time indicating when APNS determined
-                                                      -- that the application no longer exists on the device.
+    {   unRegisteredTokens :: HM.HashMap DeviceToken UTCTime -- ^ Devices tokens and time indicating when APNS determined
+                                                             -- that the application no longer exists on the device.
     } deriving Show
 
 instance Default APNSFeedBackresult where
-    def = APNSFeedBackresult []
+    def = APNSFeedBackresult HM.empty
 
 
 ifNotDef :: (ToJSON a,MonadWriter [Pair] m,Eq a,Default b)
@@ -141,7 +144,7 @@ ifNotDef label f msg = if f def /= f msg
 instance ToJSON APNSmessage where
     toJSON msg = case rest msg of
                      Nothing    -> object [(cAPPS .= toJSONapps msg)]
-                     Just (map) -> Object $ insert cAPPS (toJSONapps msg) map
+                     Just (map) -> Object $ HM.insert cAPPS (toJSONapps msg) map
 
 toJSONapps msg = object $ execWriter $ do
                                         case alert msg of

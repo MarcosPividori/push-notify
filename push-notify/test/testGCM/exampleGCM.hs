@@ -6,6 +6,7 @@ import Network
 import Data.Text
 import Data.Aeson
 import qualified Data.HashMap.Strict as HM
+import qualified Data.HashSet        as HS
 
 main :: IO ()
 main = send def
@@ -15,7 +16,7 @@ send msg = withSocketsDo $ do
            m    <- newManager def
            let gcmAppConfig  = def{ apiKey = "apikey" } -- Here you must complete with the correct Api Key.
            res  <- sendGCM m gcmAppConfig msg{
-                                registration_ids = ["registrationId"] -- Here you must complete with the correct regId of an Android app.
-                              , data_object      = Just (HM.fromList [(pack "Message" .= pack "Hello World!")]) }
+                     registration_ids = HS.singleton "registrationId" -- Here you must complete with the correct regId of an Android app.
+                   , data_object      = Just (HM.fromList [(pack "Message" .= pack "Hello World!")]) }
            print res
            return ()

@@ -20,16 +20,20 @@ module Network.PushNotify.Mpns.Types
     ) where
 
 import Network.PushNotify.Mpns.Constants
-import Network.TLS                  (PrivateKey)
-import Data.Certificate.X509        (X509)
+import Network.TLS                      (PrivateKey)
+import Data.Certificate.X509            (X509)
 import Data.Default
 import Data.Text
 import Text.XML
 import Control.Monad.Writer
-import qualified Control.Exception  as CE
+import qualified Control.Exception      as CE
+import qualified Data.HashMap.Strict    as HM
+import qualified Data.HashSet           as HS
 
 -- | 'MPNSConfig' represents the main necessary information for sending notifications through MPNS.
 -- If it is not necessary a secure connection, the default value can be used.
+--
+-- For loading the certificate and privateKey you can use: 'Network.TLS.Extra.fileReadCertificate' and 'Network.TLS.Extra.fileReadPrivateKey' .
 data MPNSConfig = MPNSConfig{
         numRet          :: Int        -- ^ Number of attemps to send the message to the server.
     ,   useSecure       :: Bool       -- ^ To set a secure connection (HTTPS).
@@ -59,7 +63,7 @@ data MPNSInterval = Immediate -- ^ Immediate delivery.
 
 -- | 'MPNSmessage' represents a message to be sent through MPNS.
 data MPNSmessage = MPNSmessage{
-        deviceURIs          :: [DeviceURI]  -- ^ Destination.
+        deviceURIs          :: HS.HashSet DeviceURI -- ^ Destination.
     ,   batching_interval   :: MPNSInterval -- ^ When to deliver the notification.
     ,   target              :: MPNSType     -- ^ The kind of notification.
     ,   restXML             :: Document     -- ^ The XML data content to be sent.
@@ -67,7 +71,7 @@ data MPNSmessage = MPNSmessage{
 
 instance Default MPNSmessage where
     def = MPNSmessage {
-        deviceURIs          = []
+        deviceURIs          = HS.empty
     ,   batching_interval   = Immediate
     ,   target              = Raw
     ,   restXML             = parseText_ def ""
@@ -78,9 +82,9 @@ instance Default MPNSmessage where
 --
 -- Take into account that a successful result after communicating with MPNS servers does not mean that the notification was successfully sent. It is necessary to check the 'MPNSinfo' , provided by the servers, to really know about the state of the notification.
 data MPNSresult = MPNSresult{
-        successfullResults :: [(DeviceURI,MPNSinfo)]         -- ^ Notifications that were successfully sent. (To the server, not to device)
-    ,   errorException     :: [(DeviceURI,CE.SomeException)] -- ^ Failed notifications that you need to resend,
-                                                            -- because there was a problem connecting with MPNS servers.
+        successfullResults :: HM.HashMap DeviceURI MPNSinfo -- ^ Notifications that were successfully sent. (To the server, not to device)
+    ,   errorException     :: HM.HashMap DeviceURI CE.SomeException -- ^ Failed notifications that you need to resend,
+                                                                    -- because there was a problem connecting with MPNS servers.
     } deriving Show
 
 -- | 'MPNSnotifStatus' represents the status of a notification which has been sent.

@@ -1,6 +1,6 @@
 -- GSoC 2013 - Communicating with mobile devices.
 
-{-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE OverloadedStrings, ScopedTypeVariables #-}
 
 -- | This Module define the main functions to send Push Notifications through Apple Push Notification Service,
 -- and to communicate to the Feedback Service.
@@ -33,6 +33,8 @@ import qualified Data.Aeson.Encode      as AE
 import qualified Data.ByteString        as B
 import qualified Data.ByteString.Lazy   as LB
 import qualified Data.ByteString.Base16 as B16
+import qualified Data.HashSet           as HS
+import qualified Data.HashMap.Strict    as HM
 import qualified Control.Exception      as CE
 import qualified Crypto.Random.AESCtr   as RNG
 import Network
@@ -76,8 +78,8 @@ startAPNS :: APNSConfig -> IO APNSManager
 startAPNS config = do
         c       <- newTChanIO
         ref     <- newIORef $ Just ()
-        tID     <- forkIO $ CE.catch (apnsWorker config c) (\e -> let _ = (e :: CE.SomeException) 
-                                                                  in atomicModifyIORef ref (\_ -> (Nothing,())))
+        tID     <- forkIO $ CE.catch (apnsWorker config c) (\(e :: CE.SomeException) ->
+                                                              atomicModifyIORef ref (\_ -> (Nothing,())))
         return $ APNSManager ref c tID $ timeoutLimit config
 
 -- | 'closeAPNS' stops the APNS service.
@@ -105,9 +107,10 @@ sendAPNS m msg = do
 
         let (success,fail)    = case v of
                 Left s  -> if s >= startNum -- an error response, s identifies the last notification that was successfully sent.
-                        then splitAt (s+1-startNum) $ deviceTokens msg -- An error occurred.
-                        else ([],deviceTokens msg) -- An old error occurred, so nothing was sent.
-                Right _ -> (deviceTokens msg,[]) -- Successful.
+                        then (\(a,b) -> (HS.fromList a,HS.fromList b)) $
+                                        splitAt (s+1-startNum)   $ HS.toList $ deviceTokens msg -- An error occurred.
+                        else (HS.empty,deviceTokens msg) -- An old error occurred, so nothing was sent.
+                Right _ -> (deviceTokens msg,HS.empty) -- Successful.
         return $ APNSresult success fail
 
 -- 'apnsWorker' starts the main worker thread.
@@ -132,15 +135,13 @@ apnsWorker config requestChan = do
                                         -- 0 -> internal worker error.
                                         -- n -> the identifier received in an error msg.
                                         --      This represent the last message that was successfully sent.
-        CE.catch (contextClose ctx) (\e -> let _ = (e :: CE.SomeException) in return ())
+        CE.catch (contextClose ctx) (\(e :: CE.SomeException) -> return ())
         apnsWorker config requestChan -- restarts.
 
         where
             catch :: IO Int -> IO Int
-            catch m = CE.catch m (\e -> do
-                            let _ = (e :: CE.SomeException)
-                            return 0)
-            
+            catch m = CE.catch m (\(e :: CE.SomeException) -> return 0)
+
             sender  :: Int32
                     -> MVar ()
                     -> TChan (MVar (Maybe (Chan Int,Int)) , APNSmessage)
@@ -148,22 +149,23 @@ apnsWorker config requestChan = do
                     -> Context
                     -> IO Int
             sender n lock requestChan errorChan c = do -- this function reads the channel and sends the messages.
-                                
+
                     atomically $ peekTChan requestChan
                     -- Now there is at least one element in the channel, so the next readTChan won't block.
                     takeMVar lock
 
                     (var,msg)   <- atomically $ readTChan requestChan
 
-                    let len = convert $ length $ deviceTokens msg     -- len is the number of messages it will send.
-                        num = if (n + len :: Int32) < 0 then 1 else n -- to avoid overflow.
+                    let list = HS.toList $ deviceTokens msg
+                        len  = convert $ HS.size $ deviceTokens msg     -- len is the number of messages it will send.
+                        num  = if (n + len :: Int32) < 0 then 1 else n -- to avoid overflow.
                     echan       <- dupChan errorChan
                     putMVar var $ Just (echan,convert num) -- Here, notifies that it is attending this request,
                                                            -- and provides a duplicated error channel.
                     putMVar lock ()
 
                     ctime       <- getPOSIXTime
-                    loop var c num (createPut msg ctime) $ deviceTokens msg -- sends the messages.
+                    loop var c num (createPut msg ctime) list -- sends the messages.
                     sender (num+len) lock requestChan errorChan c
 
             receiver :: Context -> IO Int
@@ -234,7 +236,7 @@ feedBackAPNS config = do
 
         tID     <- forkIO $ loopReceive var ctx -- To receive.
 
-        res     <- waitAndCheck var []
+        res     <- waitAndCheck var HM.empty
         killThread tID
         bye ctx
         contextClose ctx
@@ -258,9 +260,9 @@ feedBackAPNS config = do
                                                 loopReceive var ctx
                             Left _      -> return ()
 
-            waitAndCheck :: MVar (DeviceToken,UTCTime) -> [(DeviceToken,UTCTime)] -> IO APNSFeedBackresult
-            waitAndCheck var list = do
+            waitAndCheck :: MVar (DeviceToken,UTCTime) -> HM.HashMap DeviceToken UTCTime -> IO APNSFeedBackresult
+            waitAndCheck var hmap = do
                         v <- timeout (timeoutLimit config) $ takeMVar var
                         case v of
-                            Nothing -> return $ APNSFeedBackresult list
-                            Just t  -> waitAndCheck var (t:list)
+                            Nothing -> return $ APNSFeedBackresult hmap
+                            Just (d,t)  -> waitAndCheck var (HM.insert d t hmap)

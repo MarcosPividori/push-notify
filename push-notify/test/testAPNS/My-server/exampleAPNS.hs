@@ -1,13 +1,14 @@
 -- GSoC 2013 - Communicating with mobile devices.
 
 import Network.PushNotify.Apns
+import Network.TLS.Extra        (fileReadCertificate,fileReadPrivateKey)
 import Data.Default
-import Data.Text            (pack)
+import Data.Text                (pack)
+import qualified Data.HashSet   as HS
 import Control.Concurrent
-import Network.TLS.Extra    (fileReadCertificate,fileReadPrivateKey)
 
 main :: IO ()
-main = example1
+main = example2
 
 example1 :: IO ()
 example1 = do
@@ -26,7 +27,8 @@ example1 = do
              putStrLn "An alert message: "            
              alertMsg <- getLine
 
-             let msg = def { deviceTokens = [pack dtoken], alert = Left $ pack alertMsg }
+             let msg = def { deviceTokens = HS.singleton $ pack dtoken
+                           , alert = Left $ pack alertMsg }
              manager <- startAPNS confg
              res     <- sendAPNS manager msg
              putStrLn ("Result: " ++ show res)
@@ -44,7 +46,7 @@ example2 = do
              let confg = def{
                              apnsCertificate = cert
                          ,   apnsPrivateKey  = key
-                         ,   environment = Local
+                         ,   environment     = Local
                          }
 
              manager     <- startAPNS confg
@@ -60,7 +62,7 @@ example2 = do
                             forkIO $ do
                                        id <- myThreadId
                                        let msg = def{
-                                               deviceTokens = map (pack . show) [11 .. 20]
+                                               deviceTokens = HS.fromList $ map (pack . show) [11 .. 20]
                                            ,   alert        = Left $ pack ("Hello World! by: " ++ show id) }
                                        sending msg manager var
                                        putMVar var2 ()
@@ -72,6 +74,6 @@ example2 = do
                                             putStrLn ("Result: " ++ show res)
                                             putMVar var ()
                                             let rest = toReSendTokens res
-                                            if rest /= []
-                                            then sending msg{deviceTokens = rest} manager var
-                                            else return ()
+                                            if HS.null rest
+                                            then return ()
+                                            else sending msg{deviceTokens = rest} manager var

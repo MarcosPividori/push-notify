@@ -10,16 +10,18 @@ import Network.PushNotify.Mpns.Types
 
 import Data.Functor
 import Data.String
-import Data.Conduit                 (($$+-))
+import Data.Conduit                     (($$+-))
 import Data.List
-import Data.Text                    (Text, pack, unpack, empty)
-import Data.Text.Encoding           (decodeUtf8)
+import Data.Text                        (Text, pack, unpack, empty)
+import Data.Text.Encoding               (decodeUtf8)
 import Text.XML
-import qualified Control.Exception  as CE
+import qualified Control.Exception      as CE
+import qualified Data.HashMap.Strict    as HM
+import qualified Data.HashSet           as HS
 import Control.Concurrent.Async
-import Control.Monad.IO.Class       (liftIO)
-import Control.Monad.Trans.Control  (MonadBaseControl)
-import Control.Monad.Trans.Resource (MonadResource,runResourceT)
+import Control.Monad.IO.Class           (liftIO)
+import Control.Monad.Trans.Control      (MonadBaseControl)
+import Control.Monad.Trans.Resource     (MonadResource,runResourceT)
 import Control.Retry
 import Network.HTTP.Types
 import Network.HTTP.Conduit
@@ -33,13 +35,14 @@ retrySettingsMPNS = RetrySettings {
 -- | 'sendMPNS' sends the message to a MPNS Server.
 sendMPNS :: Manager -> MPNSConfig -> MPNSmessage -> IO MPNSresult
 sendMPNS manager cnfg msg = do
-                        asyncs  <- mapM (async . send manager cnfg msg) $ deviceURIs msg
+                        let uriList = HS.toList $ deviceURIs msg
+                        asyncs  <- mapM (async . send manager cnfg msg) uriList
                         results <- mapM waitCatch asyncs
-                        let list  = zip (deviceURIs msg) results
+                        let list  = zip uriList results
                             (r,l) = partition (isRight . snd) list
                         return $ MPNSresult{
-                            successfullResults = map (\(x,Right y) -> (x,y)) r
-                        ,   errorException    = map (\(x,Left e)  -> (x,e)) l
+                            successfullResults = HM.map (\(Right y) -> y) $ HM.fromList r
+                        ,   errorException     = HM.map (\(Left e)  -> e) $ HM.fromList l
                         }
                     where
                         isRight (Right _) = True

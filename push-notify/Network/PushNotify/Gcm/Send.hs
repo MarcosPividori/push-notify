@@ -9,18 +9,20 @@ import Network.PushNotify.Gcm.Constants
 import Network.PushNotify.Gcm.Types
 
 import Data.Aeson
-import Data.Aeson.Parser            (json)
+import Data.Aeson.Parser                (json)
 import Data.Aeson.Types
-import Data.Conduit                 (($$+-))
-import Data.Conduit.Attoparsec      (sinkParser)
-import Data.Map                     (Map,lookup)
+import Data.Conduit                     (($$+-))
+import Data.Conduit.Attoparsec          (sinkParser)
+import Data.Map                         (Map,lookup)
 import Data.String
-import Data.Text                    (Text, pack, unpack, empty)
-import qualified Data.ByteString.Char8 as B
+import Data.Text                        (Text, pack, unpack, empty)
+import qualified Data.ByteString.Char8  as B
+import qualified Data.HashMap.Strict    as HM
+import qualified Data.HashSet           as HS
 import Control.Concurrent
-import Control.Monad.IO.Class       (liftIO)
-import Control.Monad.Trans.Control  (MonadBaseControl)
-import Control.Monad.Trans.Resource (MonadResource,runResourceT)
+import Control.Monad.IO.Class           (liftIO)
+import Control.Monad.Trans.Control      (MonadBaseControl)
+import Control.Monad.Trans.Resource     (MonadResource,runResourceT)
 import Control.Retry
 import Network.HTTP.Types
 import Network.HTTP.Conduit
@@ -57,7 +59,7 @@ retry req manager numret msg = do
           then
             case Prelude.lookup (fromString $ unpack cRETRY_AFTER) (responseHeaders response) of
                 Nothing -> return $ def { success = Just 0
-                                        , failure = Just $ length $ registration_ids msg
+                                        , failure = Just $ HS.size $ registration_ids msg
                                         , errorToReSend = registration_ids msg
                                         } -- Persistent server internal error after retrying
                 Just t  -> do
@@ -88,7 +90,7 @@ handleSucessfulResponse resValue msg =
           Just a  -> let list  = case (getValue cRESULTS a) :: Maybe [(Map Text Value)] of
                                    Just xs ->  xs
                                    Nothing ->  []
-                         mapMsg= zip (registration_ids msg) list
+                         mapMsg= HM.fromList $ zip (HS.toList $ registration_ids msg) list
                      in
                      return $ def {
                          multicast_id  = getValue cMULTICAST_ID a
@@ -96,26 +98,26 @@ handleSucessfulResponse resValue msg =
                      ,   failure       = getValue cFAILURE a
                      ,   canonical_ids = getValue cCANONICAL_IDS a
 
-                     ,   newRegids     = let g (x,list') = case (getValue cREGISTRATION_ID list') :: Maybe RegId of
-                                                             Just xs ->  (x,xs)
-                                                             Nothing ->  (x,empty)
-                                         in  filter (\(_,y) -> y /= empty) $ map g mapMsg
+                     ,   newRegids     = let g list' = case (getValue cREGISTRATION_ID list') :: Maybe RegId of
+                                                         Just xs ->  xs
+                                                         Nothing ->  empty
+                                         in  HM.filter ((/=) empty) $ HM.map g mapMsg
 
-                     ,   messagesIds   = let g (x,list') = case (getValue cMESSAGE_ID list') :: Maybe Text of
-                                                             Just xs ->  (x,xs)
-                                                             Nothing ->  (x,empty)
-                                         in  filter (\(_,y) -> y /= empty) $ map g mapMsg
+                     ,   messagesIds   = let g list' = case (getValue cMESSAGE_ID list') :: Maybe Text of
+                                                         Just xs ->  xs
+                                                         Nothing ->  empty
+                                         in  HM.filter ((/=) empty) $ HM.map g mapMsg
 
-                     ,   errorUnRegistered = let g (x,list') = ((getValue cERROR list') :: Maybe Text) == Just cNOT_REGISTERED
-                                             in  map fst $ filter g mapMsg
+                     ,   errorUnRegistered = let g list' = ((getValue cERROR list') :: Maybe Text) == Just cNOT_REGISTERED
+                                             in  HS.fromList $ HM.keys $ HM.filter g mapMsg
 
-                     ,   errorToReSend = let g (x,list') = ((getValue cERROR list') :: Maybe Text) == Just cUNAVAILABLE
-                                         in  map fst $ filter g mapMsg
+                     ,   errorToReSend = let g list' = ((getValue cERROR list') :: Maybe Text) == Just cUNAVAILABLE
+                                         in  HS.fromList $ HM.keys $ HM.filter g mapMsg
 
-                     ,   errorRest     = let g (x,list') = case (getValue cERROR list') :: Maybe Text of
-                                                             Just xs -> if xs /= cUNAVAILABLE && xs /= cNOT_REGISTERED
-                                                                        then (x,xs)
-                                                                        else (x,empty)
-                                                             Nothing -> (x,empty)
-                                         in  filter (\(_,y) -> y /= empty) $ map g mapMsg
+                     ,   errorRest     = let g list' = case (getValue cERROR list') :: Maybe Text of
+                                                         Just xs -> if xs /= cUNAVAILABLE && xs /= cNOT_REGISTERED
+                                                                    then xs
+                                                                    else empty
+                                                         Nothing -> empty
+                                         in  HM.filter ((/=) empty) $ HM.map g mapMsg
                      }
