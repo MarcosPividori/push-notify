@@ -46,7 +46,7 @@ instance Default GCMCcsConfig where
         ,   ccsRetrySettings = RetrySettings {
                                 backoff     = True
                             ,   baseDelay   = 200
-                            ,   numRetries  = limitedRetries 5
+                            ,   numRetries  = limitedRetries 2
                             }
         }
 

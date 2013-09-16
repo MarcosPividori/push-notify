@@ -39,6 +39,7 @@ import Data.XML.Types
 import qualified Data.Attoparsec.ByteString as AB
 import qualified Control.Exception          as CE
 import qualified Data.HashMap.Strict        as HM
+import qualified Data.HashSet               as HS
 import qualified Data.ByteString.Lazy       as BL
 import qualified Data.ByteString            as BS
 import qualified Data.Text.Encoding         as E
@@ -155,7 +156,7 @@ ccsWorker config requestChan callBackF = do
                                          -- and provides a duplicated error channel.
                     putMVar locki ()
 
-                    m <- loopSend (registration_ids msg) msg chanRes sess hmap cont lock n
+                    m <- loopSend (HS.toList $ registration_ids msg) msg chanRes sess hmap cont lock n
 
                     sender m cont lock locki hmap requestChan errorChan sess
 
@@ -236,14 +237,14 @@ ccsWorker config requestChan callBackF = do
                                              atomicModifyIORef hmap (\hashMap -> (HM.delete id hashMap,()))
 
                     receiver cont lock hmap sess
-                      where
-                        getRes t e regId
-                           | t == cAck                      = def{success = Just 1}
-                           | e == Just cBadRegistration     = def{failure = Just 1 , errorRest         = [(regId,cBadRegistration)] }
-                           | e == Just cDeviceUnregistered  = def{failure = Just 1 , errorUnRegistered = [regId] }
-                           | e == Just cInternalServerError = def{failure = Just 1 , errorRest         = [(regId,cInternalServerError)] }
-                           | e == Just cServiceUnAvailable  = def{failure = Just 1 , errorToReSend     = [regId] }
-                           | otherwise                      = def{failure = Just 1 , errorToReSend     = [regId] } -- no expected msg
+                     where
+                      getRes t e regId
+                       | t == cAck                      = def{success = Just 1}
+                       | e == Just cBadRegistration     = def{failure = Just 1 , errorRest         = HM.singleton regId cBadRegistration}
+                       | e == Just cDeviceUnregistered  = def{failure = Just 1 , errorUnRegistered = HS.singleton regId }
+                       | e == Just cInternalServerError = def{failure = Just 1 , errorRest         = HM.singleton regId cInternalServerError }
+                       | e == Just cServiceUnAvailable  = def{failure = Just 1 , errorToReSend     = HS.singleton regId }
+                       | otherwise                      = def{failure = Just 1 , errorToReSend     = HS.singleton regId } -- no expected msg
 
 
 -- | 'closeCCS' stops the CCS service.
@@ -272,7 +273,7 @@ sendCCS man msg = do
           errorChan <- takeMVar varErr
           v         <- race (readChan errorChan) (loopResponse chanRes)
           case v of
-              Left _  -> return def{ failure = Just (Data.List.length $ registration_ids msg)
+              Left _  -> return def{ failure = Just (HS.size $ registration_ids msg)
                                    , errorToReSend = (registration_ids msg)} -- Error while sending.
               Right r -> return r -- Successful.
            where
@@ -281,7 +282,7 @@ sendCCS man msg = do
                                                            res <- m
                                                            return $ r <> res)
                                                 (return def)
-                                                (registration_ids msg)
+                                                (HS.toList $ registration_ids msg)
 
 -- | 'withCCS' creates a new manager, uses it in the provided function, and then releases it.
 --
