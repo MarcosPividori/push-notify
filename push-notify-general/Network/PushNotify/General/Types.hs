@@ -31,7 +31,6 @@ import qualified Data.ByteString        as BS
 import qualified Data.Text.Encoding     as E
 import qualified Data.HashMap.Strict    as HM
 import qualified Data.HashSet           as HS
-import GHC.Generics  (Generic)
 import Data.Aeson
 import Data.Default
 import Data.Hashable
@@ -44,9 +43,15 @@ import Text.XML
 data Device = GCM  RegId        -- ^ An Android app.
             | APNS DeviceToken  -- ^ An iOS app.
             | MPNS DeviceURI    -- ^ A WPhone app.
-            deriving (Show, Read, Eq, Generic)
+            deriving (Show, Read, Eq)
 
-instance Hashable Device
+instance Hashable Device where
+     hashWithSalt s (GCM n)   = s `hashWithSalt`
+                                 (0::Int) `hashWithSalt` n
+     hashWithSalt s (MPNS n)  = s `hashWithSalt`
+                                 (1::Int) `hashWithSalt` n
+     hashWithSalt s (APNS n)  = s `hashWithSalt`
+                                 (2::Int) `hashWithSalt` n
 
 -- | General notification to be sent.
 data PushNotification = PushNotification {
