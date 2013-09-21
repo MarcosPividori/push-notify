@@ -20,14 +20,10 @@ var user2 = "";
 var numUser = 0;
 var playing;
 var radios = [];
-var dests = [];
+var sound = new Audio("@{StaticR waterdrop_mp3}");
 
 function newMessage(obj) {
-        if(obj["NewMessage"] != null){
-            var p = document.createElement('p');
-            p.appendChild(document.createTextNode(obj["NewMessage"]));
-            $('#history').append(p);
-        }
+    console.log("NEW MESSAGE : %s", obj);
         if(obj["Movement"] != null){
             movement(parseInt(obj["Movement"]),-1)
         }
@@ -48,11 +44,6 @@ function newMessage(obj) {
             selectUser();
             sendNewMessage();
         }
-        if(obj["Offline"] != null){
-            $('#offline').show();
-            $('#grid').hide();
-            $('#users').hide();
-        }
 }
 
 function movement(pos,player){
@@ -64,7 +55,8 @@ function movement(pos,player){
         turn = user1;
         im = "@{StaticR yellow_png}";
     }
-    
+    sound.play();
+    $('#turn').html("<p><b>Turn:</b> " + turn + "</p>");
     if(rows[pos].src != "@{StaticR empty_png}")
            return false;
     for (var i=0;i<5;i++)
@@ -93,15 +85,10 @@ function cancel(){
 
 function createGrid(){
     var div = document.createElement("div");
-    var but = document.createElement("input");    
-    var p = document.createElement('p');
-    p.innerHTML = "<b>Playing against:</b> " + user2;
-    div.appendChild(p);
-    p = document.createElement('p');
-    p.innerHTML = "<b>Turn:</b> " + turn;
-    div.appendChild(p);
-    $('#info').append(div);
-        
+    var but = document.createElement("input");
+    $('#info').html("<p><b>Playing against:</b> " + user2 + "</p>");
+    $('#turn').html("<p><b>Turn:</b> " + turn + "</p>");
+
     for(var i=0;i<6;i++)
     {
         for (var j=0;j<7;j++)
@@ -139,34 +126,26 @@ function get_radio_value() {
     return "";
 }
 
-function get_dests_value(){
-    for (var i = 0; i < dests.length; i++) {
-        if (dests[i].checked) 
-            return dests[i].value;
-    }
-    return "";
-}
-
 function selectUser(){
     var usrs = JSON.parse(getUsers());
-    if(usrs["users"] != null){
-    radios = new Array((usrs["users"]).length);
+    if(usrs["con4"] != null){
+    radios = new Array((usrs["con4"]).length);
     var div = document.createElement("div");
-    if((usrs["users"]).length <= 1){
+    if((usrs["con4"]).length <= 1){
         var p = document.createElement('p');
         p.appendChild(document.createTextNode("No user available."));
         div.appendChild(p);
     }else{
-        for (var i=0;i<(usrs["users"]).length;i++)
+        for (var i=0;i<(usrs["con4"]).length;i++)
         {
             var p = document.createElement('p');
             radios[i] = document.createElement("input");
             radios[i].setAttribute("type", "radio");
             radios[i].setAttribute("name", "value");
-            radios[i].setAttribute("value", usrs["users"][i]);
-            if(usrs["users"][i] != user1){
+            radios[i].setAttribute("value", usrs["con4"][i]);
+            if(usrs["con4"][i] != user1){
                 p.appendChild(radios[i]);
-                p.appendChild(document.createTextNode(" "+usrs["users"][i]));
+                p.appendChild(document.createTextNode(" "+usrs["con4"][i]));
                 div.appendChild(p);
             }
         }
@@ -177,8 +156,7 @@ function selectUser(){
 
 function setView(flag){
     if(flag){
-        $('#users1').html('');
-        $('#destin').html('');   
+        $('#users1').html('');   
         $('#users').hide();
         $('#grid').show();
     }else{
@@ -199,23 +177,9 @@ function newGame(startedByMe){
     createGrid();
 }
 
-function clear1(){
-    $('#history').empty();
-}
-
 function refreshM(){
     $('#users1').html('');
     selectUser();
-}
-
-function sendM(){
-    var us = get_dests_value();
-    var text = document.getElementById('msg').value;
-    document.getElementById('msg').value = "";
-    var p = document.createElement('p');
-    p.appendChild(document.createTextNode(user1+" : "+text));
-    $('#history').append(p);
-    sendMessage("NewMessage \""+us+"\" \""+text+"\"");
 }
 
 function startM(){
@@ -224,40 +188,6 @@ function startM(){
     setView(true);
     user2 = us;
     newGame(true);
-}
-
-function sendNewMessage(){
-    var usrs = JSON.parse(getUsers());
-    if(usrs["all"] != null){
-    dests = new Array((usrs["all"]).length+1);
-    var div = document.createElement("div");
-    var p;
-    for (var i=0;i<(usrs["users"]).length;i++)
-    {
-        p = document.createElement('p');
-        dests[i] = document.createElement("input");
-        dests[i].setAttribute("type", "radio");
-        dests[i].setAttribute("name", "value");
-        dests[i].setAttribute("value", usrs["all"][i]);
-        if(usrs["users"][i] != user1){
-            p.appendChild(dests[i]);
-            p.appendChild(document.createTextNode(" "+usrs["all"][i]));
-            div.appendChild(p);
-        }
-    }
-    
-    p = document.createElement('p');
-    dests[i] = document.createElement("input");
-    dests[i].setAttribute("type", "radio");
-    dests[i].setAttribute("name", "value");
-    dests[i].setAttribute("value", "");
-    dests[i].setAttribute("checked", "yes");
-    p.appendChild(dests[i]);
-    p.appendChild(document.createTextNode(" To everyone!"));
-    div.appendChild(p);
-    
-    $('#destin').append(div);
-    }
 }
 
 function closeAlertBox(){
@@ -283,13 +213,21 @@ window.alert = function(msg){
 };
 
 (function poll(){
-    $.ajax({ url: "@{ReceiveR}", success: function(data){
+    $.ajax({ url: "@{ReceiveR}"
+     , success: function(data){
         newMessage(data);
-    }, dataType: "json", complete: poll, timeout: 0 });
+     }
+     ,dataType: "json"
+     ,complete: poll
+     ,timeout: 15000
+     ,cache: false
+     ,error: function(a , e){
+        console.log("ERROR %s",e);
+     } 
+     });
 })();
 
 $(document).ready(function () {
-    $('#offline').hide();
     obj = #{jsonData};    
     playing = obj["playing"];
     user1 = obj["user1"];
@@ -306,6 +244,6 @@ $(document).ready(function () {
     else {
         setView(false);
         selectUser();
-        sendNewMessage();
     }
 });
+

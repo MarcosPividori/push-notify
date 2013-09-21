@@ -2,6 +2,7 @@
         <div id="authid"><b>#{user1} <a href=@{AuthR LogoutR}>Logout </a> </b>
         <div id="grid">
            <div id="info">
+           <div id="turn">
            <a id="cancel" href="#" onclick="cancel();"><b>Cancel</b></a>
            <div id="grid1">
         <div id="users">
@@ -9,11 +10,3 @@
             <p> <b>Invite a user to play:</b> <a id="refresh" href="#" onclick="refreshM();"><b>Refresh</b></a>
             <div id="users1">
             <p><input type="submit" value="Start" style="font-weight:bold;" onclick="startM();">
-          <div id="messages">
-            <p> <b>Messages:</b> <a id="clear" href="#" onclick="clear1();"><b>Clear</b></a>
-            <div id="history">
-            <div id="destin">
-            <input type="text" id="msg">
-            <p><input type="submit" value="Send" style="font-weight:bold;" onclick="sendM();">
-        <div id="offline">
-            You are offline. <a href=@{RootR}><b>Restart</b></a>

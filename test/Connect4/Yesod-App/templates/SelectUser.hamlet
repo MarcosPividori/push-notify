@@ -1,9 +1,0 @@
-$maybe _ <- maid
- <p><b>Your current auth ID:</b> #{show maid} <a href=@{AuthR LogoutR}>Logout</a>
- <p> <b>Select a User to start a new game:</b>
-    $forall usr <- freeList
-      <li>
-        <a href=@{FromWebR (NewGame usr)} >#{usr}
-$nothing
-    <p>
-        <a href=@{AuthR LoginR}>Go to the login page

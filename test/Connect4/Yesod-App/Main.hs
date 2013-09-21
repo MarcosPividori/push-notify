@@ -12,6 +12,7 @@ import Yesod.Auth
 import Yesod.Auth.BrowserId
 import Yesod.Auth.GoogleEmail
 import Database.Persist.Sqlite
+import Data.Aeson
 import Data.Default
 import Data.IORef
 import Data.List                        ((\\))
@@ -19,13 +20,15 @@ import Data.Text                        (Text,pack,unpack,empty)
 import Data.Time.Clock.POSIX
 import qualified Data.Array             as DA
 import Control.Concurrent
-import Control.Concurrent.Chan          (Chan, newChan)
+import Control.Concurrent.STM           (atomically)
+import Control.Concurrent.STM.TChan     (TChan, newTChan, tryReadTChan, readTChan)
 import Control.Monad.Logger
 import Control.Monad.Trans.Resource     (runResourceT)
+import System.Environment               (getEnv)
+import System.Timeout
 import Network.PushNotify.Gcm
 import Network.PushNotify.General
 import Network.HTTP.Conduit
-import System.Timeout
 import Connect4
 import CommWebUsers
 import CommDevices
@@ -150,19 +153,13 @@ getReceiveR = do
           Messages _ _ _ _ webRef <- getYesod
           webUsers <- liftIO $ readIORef webRef
           case getClient user1 webUsers of
-            Nothing -> do
-              chan <- liftIO $ newChan
-              ctime <- liftIO $ getPOSIXTime
-              liftIO $ atomicModifyIORef webRef (\s ->
-                   let s' = addClient user1 chan ctime s
-                   in (s', ()) )
-              sendResponse $ RepJson emptyContent
+            Nothing -> sendResponse $ RepJson $ toContent $ object [] 
             Just (ch,_) -> do
               actualize user1
-              res <- liftIO $ timeout 10000000 $ readChan ch
+              res <- liftIO $ timeout 10000000 $ (atomically $ readTChan ch)
               $(logInfo) $ pack $ "Sending MESSAGE TO WEBUSER" ++ show res
               case res of
-                Nothing -> sendResponse $ RepJson emptyContent
+                Nothing -> sendResponse $ RepJson $ toContent $ object []
                 Just r  -> sendResponse $ RepJson $ toContent $ setMessageValue r
 
 -- 'getRootR' provides the main page.
@@ -172,6 +169,16 @@ getRootR = do
     case maid of
       Nothing -> redirect $ AuthR LoginR
       Just user1 -> do
+          Messages _ _ _ _ webRef <- getYesod
+          webUsers <- liftIO $ readIORef webRef
+          case getClient user1 webUsers of
+            Nothing     -> do
+              ctime <- liftIO $ getPOSIXTime
+              chan <- liftIO $ atomically $ newTChan
+              liftIO $ atomicModifyIORef webRef (\s ->
+                let s' = addClient user1 chan ctime s
+                in (s', ()) )
+            Just (ch,_) -> liftIO $ cleanTChan ch
           g1 <- runDB $ getBy $ UniqueUser1 user1
           g2 <- runDB $ getBy $ UniqueUser2 user1
           let (game,numUser) = case g1 of
@@ -190,39 +197,45 @@ getRootR = do
             Nothing -> do
                 let jsonData = object ["playing" .= False , "user1" .= user1 ]
                 defaultLayout $(widgetFile "Home")
+     where
+         cleanTChan ch = do
+                           r <- atomically $ tryReadTChan ch
+                           case r of
+                             Just _  -> cleanTChan ch
+                             Nothing -> return ()
 
-getFreelist :: Handler ([Text],[Text])
+getFreelist :: Handler [Text]
 getFreelist = do
-    list  <- (runDB $ selectList [] [Desc DevicesUser]) >>= return . map (\a -> devicesUser(entityVal a))
+    connect4list <- (runDB $ selectList [] [Desc DevicesUser])
+                    >>= return . map (\a -> devicesUser(entityVal a))
     Messages _ _ _ _ refUsers <- getYesod
-    l <- liftIO $ readIORef refUsers
-    let list1 = getClients l
-    list2 <- (runDB $ selectList [] [Desc GamesUser1]) >>= return . map (\a -> gamesUser1(entityVal a))
-    list3 <- (runDB $ selectList [] [Desc GamesUser2]) >>= return . map (\a -> gamesUser2(entityVal a))
-    let all = list ++ list1
-    return $ (((all \\ list2) \\ list3),all)
+    webList <- liftIO $ readIORef refUsers
+                        >>= return . getClients
+    playinglist1 <- runDB (selectList [] [Desc GamesUser1])
+                    >>= return . map (\a -> gamesUser1(entityVal a))
+    playinglist2 <- runDB (selectList [] [Desc GamesUser2])
+                    >>= return . map (\a -> gamesUser2(entityVal a))
+    let mCon4 = ((connect4list ++ webList) \\ playinglist1) \\ playinglist2
+    return mCon4
 
--- 'getGetUsersR' provides the list of users that are available to play ("users"), and the complete list ("all").
+-- 'getGetUsersR' provides the list of users that are available to play ("con4").
 getGetUsersR :: Handler RepJson
 getGetUsersR = do
     maid <- maybeAuthId
     case maid of
       Just user1 -> actualize user1 >> return ()
       Nothing -> return () 
-    (freeList,all) <- getFreelist
-    sendResponse $ toTypedContent $ object ["users" .= array freeList , "all" .= array all]
+    con4List <- getFreelist
+    sendResponse $ toTypedContent $ object ["con4" .= array con4List ]
 
 main :: IO ()
-main = do
-    runResourceT . runNoLoggingT $ withSqlitePool "DevicesDateBase.db3" 10 $ \pool -> do
+main = runResourceT . runNoLoggingT $ withSqlitePool "DevicesDateBase.db3" 10 $ \pool -> do
      runSqlPool (runMigration migrateAll) pool
      liftIO $ do
       ref <- newIORef Nothing
       onlineUsers <- newIORef newWebUsersState
       man <- startPushService $ PushServiceConfig{
-            pushConfig           = def{ gcmConfig  = Just $ Http $ def{apiKey = ""}
-                                   ,    mpnsConfig = Just def
-                                   }
+            pushConfig           = def{ gcmConfig  = Just $ Http $ def{apiKey = "api key for connect 4 app"} }
         ,   newMessageCallback   = handleNewMessage pool onlineUsers ref
         ,   newDeviceCallback    = handleNewDevice pool
         ,   unRegisteredCallback = handleUnregistered pool

@@ -13,6 +13,7 @@ import Data.Aeson.Types
 import Data.Conduit.Pool
 import Data.Default
 import Data.IORef
+import Data.Maybe
 import Data.Text                      (Text,pack,unpack,empty)
 import qualified Data.HashMap.Strict  as HM
 import Control.Applicative
@@ -29,8 +30,8 @@ import Handlers
 
 pars :: Value -> Parser (Text,Text)
 pars (Object v) = (,) <$>
-                  v .: "user" <*>
-                  v .: "password"
+                  v .:  "user" <*>
+                  v .:  "password"
 pars _          = mzero
 
 runDBAct p a = runResourceT . runNoLoggingT $ runSqlPool a p
@@ -73,8 +74,8 @@ handleUnregistered pool d = runDBAct pool $ deleteBy $ UniqueDevice d
 handleNewMessage :: Pool Connection -> IORef WebUsers -> IORef (Maybe PushManager) -> Device -> Value -> IO ()
 handleNewMessage pool webRef ref d v = do
    Just man <- readIORef ref
-   res      <- return $ parseMaybe pars v
-   isUser   <- authenticate res
+   res    <- return $ parseMaybe pars v
+   isUser <- authenticate res
    case isUser of 
      Nothing  -> return ()
      Just usr -> do--Authenticated!

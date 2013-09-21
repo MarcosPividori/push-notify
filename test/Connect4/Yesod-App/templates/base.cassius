@@ -2,13 +2,21 @@ html
     font-family: sans-serif
     background-color: #000000
     font-size: 16px
+    height: 100%
+    min-width: 800px
+    min-height: 500px
+
+body
+    height: 100%
+    background-color: #000000
 
 div#main 
-    width: 1000px
-    margin: 70px auto 0px auto
+    width: 95%
+    min-width: 500px
+    margin: 5% auto 0px auto
     padding: 20px
     background-color: #fff
-    height: 520px
+    height: 75%
 
 div#grid1
     width: 525px
@@ -24,6 +32,13 @@ div#info
     margin-right: auto
     text-align: left
 
+div#turn
+    width: 400px
+    display: block
+    margin-left: auto
+    margin-right: auto
+    text-align: left
+        
 a#cancel
     width: 400px
     display: block
@@ -41,45 +56,40 @@ div#authid a
     color: #fff
 
 div#users
-    height: 400px
-    width: 800px
+    height: 95%
+    width: 70%
     display: block
     margin-left: auto
     margin-right: auto
 
 div#startgame
-    height: 400px
-    width: 400px
+    height: 75%
+    width: 45%
     display: block
     margin-left: auto
     margin-right: auto
     text-align: left
     float: left
 
-div#offline
-    display: block
-    margin-left: auto
-    margin-right: auto
-
 div#messages 
     margin: 0px
-    width: 400px
-    max-height: 400px
+    width: 45%
+    height: 75%
     overflow: auto
     float: right
 
 div#history
-    max-height: 200px
+    max-height: 40%
     overflow: auto
 
 div#destin 
-    max-height: 100px
+    max-height: 35%
     overflow: auto
 
 div#footer
-    height: 50px
+    height: 12%
     color: #fff
-    padding: 20px 20px 20px 20px
+    padding: 2% 2% 2% 2%
     background-color: #000000
     display: block
 
@@ -98,10 +108,18 @@ div#deployment
 div#deployment a
     color:#0174DF
 
+div#appsLink
+    height: 5%
+    width: auto
+    display: block
+    margin-left: auto
+    margin-right: auto
+    text-align: center
+
 #alertBox
     position:absolute
-    top:200px
-    left:200px
+    top:40%
+    left:40%
     border:solid 1px black
     background-color: #0174DF
     padding: 50px

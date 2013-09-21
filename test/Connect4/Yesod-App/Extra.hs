@@ -9,12 +9,12 @@ import Database.Persist.TH
 import Connect4
 import Data.Text
 import Data.Time.Clock.POSIX
-import Control.Concurrent.Chan (Chan)
+import Control.Concurrent.STM.TChan            (TChan)
 import qualified Data.HashMap.Strict as HM
 
-data Identifier = Dev Device | Web (Chan MsgFromDevice) deriving Eq
-type WebUsers   = HM.HashMap Text (Chan MsgFromDevice,POSIXTime)
-data MsgFromDevice = Cancel | Movement Int | NewGame Text | Winner Text | NewMessage Text Text | Offline deriving (Show,Read,Eq)
+data Identifier = Dev Device | Web (TChan MsgFromPlayer)
+type WebUsers   = HM.HashMap Text (TChan MsgFromPlayer,POSIXTime)
+data MsgFromPlayer = Cancel | Movement Int | NewGame Text | Winner Text deriving (Show,Read,Eq)
 
 derivePersistField "Device"
 derivePersistField "Board"

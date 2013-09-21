@@ -1,4 +1,4 @@
-{-# LANGUAGE OverloadedStrings , QuasiQuotes #-}
+{-# LANGUAGE OverloadedStrings , QuasiQuotes , PackageImports #-}
 
 -- This module defines the main function to handle the messages that comes from users (web or device users).
 module Handlers
@@ -7,73 +7,64 @@ module Handlers
     , setMessageValue
     ) where
 
-import Database.Persist.Sqlite
+import Database.Persist.Postgresql
 import Data.Aeson.Types
 import Data.Aeson
 import Data.Conduit.Pool
 import Data.Default
 import Data.IORef
-import Data.Monoid                    ((<>))
-import Data.Text                      (Text,pack,unpack,empty)
+import Data.Monoid                        ((<>))
+import Data.Text                          (Text,pack,unpack,empty)
 import Data.Text.Encoding
-import qualified Data.HashMap.Strict  as HM
-import qualified Data.HashSet         as HS
-import qualified Data.Map             as M
-import qualified Data.ByteString.Lazy as BL
-import qualified Data.ByteString      as BS
+import qualified Data.HashMap.Strict      as HM
+import qualified "unordered-containers" Data.HashSet    as HS
+import qualified Data.Map                 as M
+import qualified Data.ByteString.Lazy     as BL
+import qualified Data.ByteString          as BS
 import Control.Applicative
-import Control.Monad                  (mzero,when)
+import Control.Monad                      (mzero,when)
 import Control.Monad.Logger
-import Control.Monad.Trans.Resource   (runResourceT)
+import Control.Monad.Trans.Resource       (runResourceT)
 import Network.PushNotify.Gcm
 import Network.PushNotify.Mpns
 import Network.PushNotify.General
-import Control.Concurrent.Chan        (Chan, writeChan)
+import Control.Concurrent.STM             (atomically)
+import Control.Concurrent.STM.TChan       (TChan, writeTChan)
 import Blaze.ByteString.Builder.Char.Utf8 (fromText)
-import Text.XML
-import Text.Hamlet.XML
 import Connect4
 import DataBase
 import Extra
 
 runDBAct p a = runResourceT . runNoLoggingT $ runSqlPool a p
 
-setMessageValue :: MsgFromDevice -> Value
+setMessageValue :: MsgFromPlayer -> Value
 setMessageValue m = let message = case m of
                                Cancel         -> [(pack "Cancel" .= pack "")]
                                Movement mov   -> [(pack "Movement" .= (pack $ show mov) )]
                                NewGame usr    -> [(pack "NewGame" .= usr)]
                                Winner  usr    -> [(pack "Winner" .= usr)]
-                               NewMessage _ m -> [(pack "NewMessage" .= m)]
-                               Offline        -> [(pack "Offline" .= pack "")]
-               in (Object $ HM.fromList message)
+                    in (Object $ HM.fromList message)
 
 getPushNotif :: Value -> PushNotification
-getPushNotif (Object o) = def {   gcmNotif  = Just $ def { data_object = Just o }
-                     ,  mpnsNotif  = case HM.lookup "NewGame" o of
-                          Just (String msg) -> Just $ def {target = Toast , restXML = Document (Prologue [] Nothing []) (xmlMessage msg) []}
-                          _        -> Nothing
-                     }
+getPushNotif (Object o) = def {gcmNotif  = Just $ def { data_object = Just o } }
 getPushNotif _          = def
 
-parsMsg :: Value -> Parser MsgFromDevice
+parsMsg :: Value -> Parser MsgFromPlayer
 parsMsg (Object v) = setMsg <$>
                        v .:? "Cancel"     <*>
                        v .:? "Movement"   <*>
-                       v .:? "NewGame"    <*>
-                       v .:? "NewMessage"
+                       v .:? "NewGame"
 parsMsg _          = mzero
 
-parsMessage :: Value -> Maybe MsgFromDevice
+parsMessage :: Value -> Maybe MsgFromPlayer
 parsMessage = parseMaybe parsMsg
 
-setMsg :: Maybe Text -> Maybe Text -> Maybe Text -> Maybe Text -> MsgFromDevice
-setMsg (Just _) _ _ _ = Cancel
-setMsg _ (Just a) _ _ = Movement ((read $ unpack a) :: Int)
-setMsg _ _ (Just a) _ = NewGame a
-setMsg _ _ _ (Just a) = NewMessage "" a
+setMsg :: Maybe Text -> Maybe Text -> Maybe Text -> MsgFromPlayer
+setMsg (Just _) _ _ = Cancel
+setMsg _ (Just a) _ = Movement ((read $ unpack a) :: Int)
+setMsg _ _ (Just a) = NewGame a
 
-handleMessage :: Pool Connection -> WebUsers -> PushManager -> Identifier -> Text -> MsgFromDevice -> IO ()
+handleMessage :: Pool Connection -> WebUsers -> PushManager -> Identifier -> Text -> MsgFromPlayer -> IO ()
 handleMessage pool webUsers man id1 user1 msg = do
     case msg of
       Cancel       -> do--Cancel
@@ -118,23 +109,19 @@ handleMessage pool webUsers man id1 user1 msg = do
                  return ()
             (_,_) -> sendMessage Cancel id1
 
-      NewMessage dest us -> if dest == ""
-                              then mapM_ (\s -> when (Web s /= id1) $ sendMessage 
-                                                     (NewMessage "" (user1<>": "<>us)) (Web s))
-                                         (map fst $ HM.elems webUsers)
-                              else do
-                                     res <- getIdentifier dest
-                                     case res of
-                                       Just s -> sendMessage (NewMessage "" (user1<>": "<>us)) s
-                                       _      -> return ()
       _ -> return ()
     where
         sendMessage msg id = case id of
                                Web chan -> do
-                                             putStrLn $ "Envio en channel: " ++ show msg
-                                             writeChan chan msg
-                               Dev d    -> sendPush man (getPushNotif $ setMessageValue msg) (HS.singleton d) >> return ()
-        
+                                             putStrLn $ "Sending on channel: " ++ show msg
+                                             atomically $ writeTChan chan msg
+                               Dev d    -> do
+                                             putStrLn $ "Sending on PushServer: " ++ show msg
+                                             res <- sendPush man (getPushNotif $ setMessageValue msg) (HS.singleton d)
+                                             if HM.null (failed res)
+                                              then return ()
+                                              else fail "Problem Communicating with Push Servers"
+                                             putStrLn $ "PushResult: " ++ show res
         deleteGame usr     = do
                                runDBAct pool $ deleteBy $ UniqueUser1 usr
                                runDBAct pool $ deleteBy $ UniqueUser2 usr
@@ -169,10 +156,3 @@ handleMessage pool webUsers man id1 user1 msg = do
                                case (game1,game2) of
                                  (Nothing,Nothing) -> return False
                                  _                 -> return True
-
-xmlMessage msg = Element (Name "Notification" (Just "WPNotification") (Just "wp")) (M.singleton "xmlns:wp" "WPNotification") [xml|
-<wp:Toast>
-    <wp:Text1>New message:
-    <wp:Text2>#{msg}
-    <wp:Param>?msg=#{msg}
-|]
