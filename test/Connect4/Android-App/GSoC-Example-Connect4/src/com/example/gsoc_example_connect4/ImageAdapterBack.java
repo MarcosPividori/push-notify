@@ -7,6 +7,7 @@ import android.widget.BaseAdapter;
 import android.widget.GridView;
 import android.widget.ImageView;
 
+//Image adapter for the game's board.
 public class ImageAdapterBack extends BaseAdapter {
     private Context mContext;
     Board main;
@@ -30,10 +31,9 @@ public class ImageAdapterBack extends BaseAdapter {
         return 0;
     }
 
-    // create a new ImageView for each item referenced by the Adapter
     public View getView(int position, View convertView, ViewGroup parent) {
         ImageView imageView;
-        if (convertView == null) {  // if it's not recycled, initialize some attributes
+        if (convertView == null) {
             imageView = new ImageView(mContext);
             imageView.setLayoutParams(new GridView.LayoutParams(size,size));
             imageView.setScaleType(ImageView.ScaleType.CENTER_CROP);

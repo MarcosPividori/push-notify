@@ -3,6 +3,8 @@ package com.example.gsoc_example_connect4;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicInteger;
 
+import android.media.AudioManager;
+import android.media.SoundPool;
 import android.os.AsyncTask;
 import android.os.Build;
 import android.os.Bundle;
@@ -27,73 +29,70 @@ import android.widget.Toast;
 import com.example.gsoc_example_connect4.R;
 
 import static com.example.gsoc_example_connect4.CommonUtilities.EXTRA_CANCEL;
-import static com.example.gsoc_example_connect4.CommonUtilities.EXTRA_MOVEMENT;
-import static com.example.gsoc_example_connect4.CommonUtilities.EXTRA_ERRORSENDING;
 import static com.example.gsoc_example_connect4.CommonUtilities.NEW_MESSAGE_ACTION;
+import static com.example.gsoc_example_connect4.CommonUtilities.EXTRA_ERRORSENDING;
+import static com.example.gsoc_example_connect4.CommonUtilities.EXTRA_NEWGAME;
+import static com.example.gsoc_example_connect4.CommonUtilities.EXTRA_MOVEMENT;
+import static com.example.gsoc_example_connect4.CommonUtilities.EXTRA_WINNER;
 
 public class MainActivity extends FragmentActivity {
 
 	public static final String EXTRA_MESSAGE = "message";
     public static final String PROPERTY_REG_ID = "registration_id";
     public static final String PROPERTY_ON_SERVER_EXPIRATION_TIME = "onServerExpirationTimeMs";
-    AtomicInteger msgId = new AtomicInteger();
-    
-    // Default lifespan (7 days) of a reservation until it is considered expired.
     public static final long REGISTRATION_EXPIRY_TIME_MS = 1000 * 3600 * 24 * 7;
-
-    // Tag used on log messages.
-    static final String TAG = "GSoC-Example";
-    
-    SharedPreferences prefs;
-    Context context;
-
-    String regid,user,password;
-    String actualPlayer = null;
-    Boolean registered;
-    AlertDialog dialog;
-    MainActivity local;
-    Board board;
-    List<String> listUsers = null;
-    GridView gridviewBack;
-    
-    Boolean onForeGround=true;
-    
+    static final String TAG = "Connect4-GSoC-Example";
+    private AtomicInteger msgId = new AtomicInteger();
+    private SharedPreferences prefs;
+    private Context context;
+    private String regid,user,password;
+    private String actualPlayer = null;
+    private Boolean registered;
+    private AlertDialog dialog;
+    private Board board;
+    private SoundPool soundPool;
+    private int soundID;
+    private List<String> listUsers = null;
+    private Boolean onForeGround = true;
+    private GridView gridviewBack;
     private View mConnectingStatusView;
     private View mMainPageView;
     private View mInitPageView;
 		
-    
+    // Creates the initial configuration
     @Override
     public void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
            
-        registerReceiver(mHandleMessageReceiver,
-                new IntentFilter(NEW_MESSAGE_ACTION));
+        registerReceiver(mHandleMessageReceiver, new IntentFilter(NEW_MESSAGE_ACTION));
         
         prefs = getSharedPreferences(MainActivity.class.getSimpleName(),Context.MODE_PRIVATE);
         SharedPreferences.Editor editor = prefs.edit();
-        onForeGround=true;
+        onForeGround = true;
 		editor.putBoolean("onForeGround", true);
 		editor.commit();
-        registered = prefs.getBoolean("registered", false);
-        user = prefs.getString("user","");
-        password = prefs.getString("password","");
-        context = getApplicationContext();
-        local = MainActivity.this;
-        regid = getRegistrationId(context);
+        registered   = prefs.getBoolean("registered", false);
+        user         = prefs.getString("user","");
+        password     = prefs.getString("password","");
         actualPlayer = prefs.getString("actualPlayer",null);
         
-        gridviewBack = (GridView) findViewById(R.id.gridviewBack);
-        mMainPageView = findViewById(R.id.mainPage);
-        mInitPageView = findViewById(R.id.initPage);
-        mConnectingStatusView = findViewById(R.id.connecting_status);
+        context = getApplicationContext();
+        regid   = getRegistrationId(context);
         
-    	findViewById(R.id.finish_button).setOnClickListener(
+        gridviewBack  = (GridView)     findViewById(R.id.gridviewBack);
+        mMainPageView = (View)         findViewById(R.id.mainPage);
+        mInitPageView = (View)         findViewById(R.id.initPage);
+        mConnectingStatusView = (View) findViewById(R.id.connecting_status);
+        
+        soundPool = new SoundPool(4,AudioManager.STREAM_MUSIC, 0);
+        soundID   = soundPool.load(this, R.raw.waterdrop, 1);
+    	
+        findViewById(R.id.finish_button).setOnClickListener(
 				new View.OnClickListener() {
 					@Override
 					public void onClick(View view) {
-						sendCancel();		
+						sendCancel();
 					}
 				});
         findViewById(R.id.start_button).setOnClickListener(
@@ -104,43 +103,74 @@ public class MainActivity extends FragmentActivity {
 					}
 				});
         
+        // Checks if it is registered on Server.
         if(!registered || regid == ""){
             Intent intent = new Intent(context, Register.class);
             startActivityForResult(intent,1000);
         }
         else{
-        	String winner;
-        	if(prefs.getString("newInvitation", null) != null){
-        		NewInvitation n = new NewInvitation();
-        		n.show(getSupportFragmentManager(), "NewInvitation");
-        		editor.remove("newInvitation");
-        		editor.commit();
-            }
-        	else if((winner = prefs.getString("newWinner", null)) != null){
-        		AlertDialog.Builder builder = new AlertDialog.Builder(MainActivity.this);
-                builder.setMessage(winner + " is the winner!")
-                	   .setNeutralButton(R.string.close, new DialogInterface.OnClickListener() {
-                    public void onClick(DialogInterface dialog, int id) {
-                		Intent intentNew = getIntent();
-                    	finish();
-                    	startActivity(intentNew);
-                    }
-                });
-                dialog = builder.create();
-                dialog.show();
-        		editor.remove("newWinner");
-        		editor.commit();
-            }
+        	showIfInvitation();
+        	showIfWinner();
+        	showIfCanceled();
         	showGame(false,false);
         }
         
     }
-        
+    
+    // Shows a message with an invitation to play.
+    void showIfInvitation(){
+    	SharedPreferences.Editor editor = prefs.edit();
+    	if(prefs.getString(EXTRA_NEWGAME, null) != null){
+    		NewInvitation n = new NewInvitation();
+    		n.show(getSupportFragmentManager(), "NewInvitation");
+    		editor.remove(EXTRA_NEWGAME);
+    		editor.commit();
+    	}
+    }
+    
+    // Shows a message with the winner.
+    void showIfWinner(){
+    	String winner;
+    	SharedPreferences.Editor editor = prefs.edit();
+    	if((winner = prefs.getString(EXTRA_WINNER, null)) != null){
+    		AlertDialog.Builder builder = new AlertDialog.Builder(MainActivity.this);
+            builder.setMessage(winner + " wins!")
+            	   .setNeutralButton(R.string.close, new DialogInterface.OnClickListener() {
+                public void onClick(DialogInterface dialog, int id) {
+            		;
+                }
+            });
+            dialog = builder.create();
+            dialog.show();
+    		editor.remove(EXTRA_WINNER);
+    		editor.commit();
+        }
+    }
+    
+    // Shows a message because the game was cancelled.
+    void showIfCanceled(){
+    	String player;
+    	SharedPreferences.Editor editor = prefs.edit();
+    	if((player = prefs.getString(EXTRA_CANCEL, null)) != null){
+    		AlertDialog.Builder builder = new AlertDialog.Builder(MainActivity.this);
+            builder.setMessage(player + " has cancelled the game!")
+            	   .setNeutralButton(R.string.close, new DialogInterface.OnClickListener() {
+                public void onClick(DialogInterface dialog, int id) {
+            		;
+                }
+            });
+            dialog = builder.create();
+            dialog.show();
+    		editor.remove(EXTRA_CANCEL);
+    		editor.commit();
+        }
+    }
+    
     void showGame(Boolean b1, Boolean b2){
     	     
-    	if(actualPlayer == null)
+    	if(actualPlayer == null) //Not playing.
     		showBoard(false);
-        else{
+        else{//Playing.
 	    	board = new Board(prefs,b1,b2);
 	        
 	        int displayWidth  = getResources().getDisplayMetrics().widthPixels ;
@@ -157,21 +187,23 @@ public class MainActivity extends FragmentActivity {
 	        gridviewBack.setColumnWidth(size);
 	        gridviewBack.setOnItemClickListener(new AdapterView.OnItemClickListener() {
 	            public void onItemClick(AdapterView<?> parent, View v, int position, long id) {
-	            	local.newMovement(position%7);
+	            	newMovement(position%7);
 	            }
 	        });
 	        gridviewBack.setPadding(pad,0, pad , 0);
 	        
 	        TextView mainTextView = (TextView) findViewById(R.id.mainText);
 	    	mainTextView.setText("Playing against: " + actualPlayer + "  ");
-	        showBoard(true);
+	    	mainTextView.setMaxWidth(displayWidth-80);
+	    	showBoard(true);
         }
-    }  
+    }
     
     public String getActualPlayer(){
     	return actualPlayer;
     }
     
+    //Choose an available player from Server.
     void choosePlayer(){
     	showProgress(true);
     	new AsyncTask<Void, Void, List<String>>() {
@@ -181,8 +213,7 @@ public class MainActivity extends FragmentActivity {
     			return ServerUtilities.getUsersList(user);
     		}
     		protected void onPostExecute(List<String> result) {
-    			if (result != null)
-    				showProgress(false);
+    			showProgress(false);
     			continue1(result);
     	    }
     	}.execute(null,null,null);
@@ -198,19 +229,16 @@ public class MainActivity extends FragmentActivity {
         s.show(getSupportFragmentManager(), "SelectUser");
     }
     
+    //Result of choosing a player.
     void resultChoose(int pos){
-    	if(pos >= 0){
-    		actualPlayer = listUsers.get(pos);
-    		TextView mainTextView = (TextView) findViewById(R.id.mainText);
-    		mainTextView.setText("Playing against: " + actualPlayer + "  ");
-    		showGame(true,false);
-    		SharedPreferences.Editor editor = prefs.edit();
-    		editor.putString("actualPlayer", actualPlayer);
-    		editor.commit();
-    		sendNewGame();
-    	}
-    	else
-    		showProgress(false);
+    	actualPlayer = listUsers.get(pos);
+    	TextView mainTextView = (TextView) findViewById(R.id.mainText);
+    	mainTextView.setText("Playing against: " + actualPlayer + "  ");
+    	showGame(true,false);
+    	SharedPreferences.Editor editor = prefs.edit();
+    	editor.putString("actualPlayer", actualPlayer);
+    	editor.commit();
+    	sendNewGame();
     }
     
     void finishGame(){
@@ -225,16 +253,16 @@ public class MainActivity extends FragmentActivity {
     }
     
     public void newMovement(int position){
-    	if(board.getTurn() == 1)
-    		showToast("Your turn");
-    	else
+    	if(board.getTurn() != 1)
     		showToast(actualPlayer + " plays");
-    	if(board.newMovement(position,1)){
+    	if(board.newMovement(position,1)){ 
+    		soundPool.play(soundID, 1, 1, 0, 0, 1);
     		gridviewBack.invalidateViews();
     		sendMovement(position);
     	}
     }
     
+    //Simple function to show status messages.
     void showToast(CharSequence text){
     	int duration = Toast.LENGTH_SHORT;
     	Toast toast = Toast.makeText(context, text, duration);
@@ -270,7 +298,7 @@ public class MainActivity extends FragmentActivity {
                 dialog = builder.create();
                 dialog.show();
                 return true;
-                
+            //Go to setting tab, to select CCS or HTTP Post requests.
             case R.id.options_settings:
             	Intent intent = new Intent(this, SettingsActivity.class);
 				startActivity(intent);
@@ -290,22 +318,15 @@ public class MainActivity extends FragmentActivity {
     	//Returning from the register activity.
     	if(requestCode == 1000)
     		if(resultCode == RESULT_OK){
-    			user = data.getStringExtra("USER");
-    			password = data.getStringExtra("PASSWORD");
-    			regid = data.getStringExtra("REGID");
-    			SharedPreferences.Editor editor = prefs.edit();
-    			editor.putString("user", user);
-    			editor.putString("password", password);
-    			editor.putString("user", user);
-    			editor.putString("password", password);
+    			user       = data.getStringExtra("USER");
+    			password   = data.getStringExtra("PASSWORD");
+    			regid      = data.getStringExtra("REGID");    	        
     			registered = prefs.getBoolean("registered", false);
-    			// Commit the edits!
-    			editor.commit();
     			showGame(false,false);
     		}
     }
-        
-    
+
+
     // Gets the current registration id for application on GCM service.
     // If result is empty, the registration has failed.
     private String getRegistrationId(Context context) {
@@ -333,25 +354,37 @@ public class MainActivity extends FragmentActivity {
         return System.currentTimeMillis() > expirationTime;
     }
     
-    
+    private void reset(){
+    	actualPlayer = null;
+    }
     // To Receive the messages to be shown in the text view.
     private final BroadcastReceiver mHandleMessageReceiver =
             new BroadcastReceiver() {
         
         @Override
         public void onReceive(final Context context, Intent intent) {
-        	if( intent.getExtras().getString(EXTRA_CANCEL) != null){
-        		AlertDialog.Builder builder = new AlertDialog.Builder(MainActivity.this);
-                builder.setMessage(actualPlayer + " has cancelled the game!")
-                	   .setNeutralButton(R.string.close, new DialogInterface.OnClickListener() {
-                    public void onClick(DialogInterface dialog, int id) {
-                		Intent intentNew = getIntent();
-                    	finish();
-                    	startActivity(intentNew);
-                    }
-                });
-                dialog = builder.create();
-                dialog.show();
+        	if(intent.getExtras().getString(EXTRA_CANCEL) != null){
+            	showIfCanceled();
+        		reset();
+        		showGame(false,false);
+        	}
+        	else if(intent.getExtras().getString(EXTRA_ERRORSENDING) != null){
+        		reset(); //Problem with CCS messaging.
+            	showGame(false,false);
+        	}
+        	else if(intent.getExtras().getString(EXTRA_WINNER) != null){
+            	showIfWinner();
+            	reset();
+        		showGame(false,false);
+        	}
+        	else if(intent.getExtras().getString(EXTRA_MOVEMENT) != null){
+        		soundPool.play(soundID, 1, 1, 0, 0, 1);
+        		showGame(false,false);
+        	}
+        	else if(intent.getExtras().getString(EXTRA_NEWGAME) != null){
+        		actualPlayer = prefs.getString("actualPlayer","");
+        		showIfInvitation();
+        		showGame(false,false);
         	}
         	else{
         		if(onForeGround){
@@ -367,7 +400,7 @@ public class MainActivity extends FragmentActivity {
     public void sendCancel() {
     	context = this;
     	if(registered){
-    		showToast("Sending info to server.");
+    		showToast(getString(R.string.sending));
     		new AsyncTask<String, Void, Boolean>() {
     			@Override
     			protected Boolean doInBackground(String... parameters) {
@@ -375,23 +408,23 @@ public class MainActivity extends FragmentActivity {
     			}
     			protected void onPostExecute(Boolean result) {
         			if (!result){
-        				showToast("Couldn't send info to sever.");
+        				showToast(getString(R.string.error_sending));
         			}
         			else{
         				finishGame();
-        				showToast("Cancelled");
+        				showToast(getString(R.string.cancel));
         		    }
         	    }
-    		}.execute("Cancel","",null);
+    		}.execute(EXTRA_CANCEL,"",null);
         }
     	else 
-    		showToast("You have to be registered to play.");
+    		showToast(getString(R.string.be_registered));
     }
     
     public void sendNewGame() {
     	context = this;
     	if(registered){
-    		showToast("Sending info to server.");
+    		showToast(getString(R.string.sending));
     		new AsyncTask<String, Void, Boolean>() {
     			@Override
     			protected Boolean doInBackground(String... parameters) {
@@ -400,44 +433,44 @@ public class MainActivity extends FragmentActivity {
     			protected void onPostExecute(Boolean result) {
         			if (!result){
         				finishGame();
-        				showToast("Couldn't send info to sever.");
+        				showToast(getString(R.string.error_sending));
         			}
         			else{
-        				showToast("Sent");
+        				showToast(getString(R.string.sent));
         		    }
         	    }
-    		}.execute("NewGame",actualPlayer,null);
+    		}.execute(EXTRA_NEWGAME,actualPlayer,null);
         }
     	else 
-    		showToast("You have to be registered to play.");
+    		showToast(getString(R.string.be_registered));
     }
     
     public void sendMovement(int position) {
     	context = this;
     	if(registered){
-    		showToast("Sending info to server.");
+    		showToast(getString(R.string.sending));
     		new AsyncTask<Integer, Void, Integer>() {
     			@Override
     			protected Integer doInBackground(Integer... parameters) {
-    				if(ServerUtilities.sendMsgToServer(context,regid,user,password,"Movement",String.valueOf(parameters[0]),msgId))
-    					return parameters[0];
-    				else
+    				if(ServerUtilities.sendMsgToServer(context,regid,user,password,EXTRA_MOVEMENT,String.valueOf(parameters[0]),msgId))
     					return -1;
+    				else
+    					return parameters[0];
     			}
     			protected void onPostExecute(Integer result) {
-        			if (result == -1){
+        			if (result != -1){
         	    		board.cancelMovement(result);
         	    		gridviewBack.invalidateViews();
-        	    		showToast("Couldn't send info to sever.");
+        	    		showToast(getString(R.string.error_sending));
         			}
         			else{
-        				showToast("Sent");
+        				showToast(getString(R.string.sent));
         		    }
         	    }
     		}.execute(position,null,null);
         }
     	else 
-    		showToast("You have to be registered to play.");
+    		showToast(getString(R.string.be_registered));
     }
     
     private void showBoard(final boolean show) {

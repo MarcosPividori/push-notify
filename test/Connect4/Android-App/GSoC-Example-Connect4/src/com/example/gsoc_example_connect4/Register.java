@@ -19,6 +19,7 @@ import android.os.AsyncTask;
 import android.os.Build;
 import android.os.Bundle;
 import android.text.TextUtils;
+import android.util.Log;
 import android.view.KeyEvent;
 import android.view.View;
 import android.view.inputmethod.EditorInfo;
@@ -29,7 +30,7 @@ import android.content.DialogInterface;
 import android.content.Intent;
 import android.content.SharedPreferences;
 
-// Activity to register user, password and server_url where the device should register.
+// Activity to register user and password.
 public class Register extends Activity {
 	
 	private String mUser;
@@ -50,6 +51,7 @@ public class Register extends Activity {
     
     Context context;
 	
+    // Creates the initial configuration
 	@Override
 	protected void onCreate(Bundle savedInstanceState) {
 		super.onCreate(savedInstanceState);
@@ -147,16 +149,14 @@ public class Register extends Activity {
 			// There is an error, so registration does not success and focus on the error.
 			focusView.requestFocus();
 		} else {
-			// Send information to Main Activity.
+			// Send information to server.
 			mLoginStatusMessageView.setText(R.string.login_progress_registering);
 			showProgress(true);
 			sendInfoToServer();
 		}
 	}
 	
-	/**
-	 * Shows the progress UI and hides the login form.
-	 */
+	// Shows the progress UI and hides the login form.
 	@TargetApi(Build.VERSION_CODES.HONEYCOMB_MR2)
 	private void showProgress(final boolean show) {
 		// On Honeycomb MR2 we have the ViewPropertyAnimator APIs, which allow
@@ -192,7 +192,6 @@ public class Register extends Activity {
 			// and hide the relevant UI components.
 			mLoginStatusView.setVisibility(show ? View.VISIBLE : View.GONE);
 			mLoginFormView.setVisibility(show ? View.GONE : View.VISIBLE);
-			
 		}
 	}
 	
@@ -214,6 +213,7 @@ public class Register extends Activity {
                     setRegistrationId(context, regid);
 
                 } catch (IOException ex) {
+                	Log.v("RegisterGCM", "Registration not found. " + ex);
                 	return false;
                 }
                 return true;
@@ -248,12 +248,14 @@ public class Register extends Activity {
     			return ServerUtilities.register(context,regid,mUser,mPassword);
     		}
     		protected void onPostExecute(Boolean result) {
-    			if(result){
+    			if(result){//Sends result to MainActivity.
     				showProgress(false);
     				SharedPreferences.Editor editor = prefs.edit();
              	    editor.putBoolean("registered", result);
-            	    editor.commit();
-            	    Intent i = getIntent();
+             	    editor.putString("user", mUser);
+       			    editor.putString("password", mPassword);
+       			    editor.commit();
+            	    Intent i = new Intent();
         			i.putExtra("USER",mUser);
         			i.putExtra("PASSWORD",mPassword);
         			i.putExtra("REGID",regid);

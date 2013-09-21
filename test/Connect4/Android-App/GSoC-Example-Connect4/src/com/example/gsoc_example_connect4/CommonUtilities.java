@@ -1,19 +1,18 @@
 package com.example.gsoc_example_connect4;
 
-//This class provide some common methods and constants.
+//This class provide some common constants.
 public final class CommonUtilities {
 	
 	//The server url, the device will send its regId and user information to this.
-	static final String SERVER_URL = "";
+	static final String SERVER_URL = "http://gsoc.marcospividori.com.ar";
 	
 	//Google API project id registered.
     static final String SENDER_ID = "";// You must complete with Project ID
 
-    //Intent used for showing messages on the screen.
+    //Intent used when receiving new messages.
     static final String NEW_MESSAGE_ACTION =
             "com.example.gsoc_example_connect4.NEW_MESSAGE";
-    
-    //Intent's extra which contains the new movement.
+
     static final String EXTRA_MOVEMENT = "Movement";
     
     static final String EXTRA_ERRORSENDING = "ErrorSending";
