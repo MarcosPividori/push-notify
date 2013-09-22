@@ -22,9 +22,10 @@ import static com.example.gsoc_example_connect4.CommonUtilities.EXTRA_MOVEMENT;
 import static com.example.gsoc_example_connect4.CommonUtilities.NEW_MESSAGE_ACTION;
 import static com.example.gsoc_example_connect4.CommonUtilities.EXTRA_NEWGAME;
 import static com.example.gsoc_example_connect4.CommonUtilities.EXTRA_WINNER;
+import static com.example.gsoc_example_connect4.CommonUtilities.EXTRA_ERRORSENDING;
 
 
-// Handling of GCM messages.
+//This class handles GCM messages.
 public class GcmBroadcastReceiver extends BroadcastReceiver {
     
 	static final String TAG = "GSoC-Example";
@@ -33,6 +34,7 @@ public class GcmBroadcastReceiver extends BroadcastReceiver {
     NotificationCompat.Builder builder;
     Context ctx;
     
+    //Receives GCM messages.
     @Override
     public void onReceive(Context context, Intent intent) {
         GoogleCloudMessaging gcm = GoogleCloudMessaging.getInstance(context);
@@ -56,14 +58,14 @@ public class GcmBroadcastReceiver extends BroadcastReceiver {
         }        
         
         if (GoogleCloudMessaging.MESSAGE_TYPE_SEND_ERROR.equals(messageType)) {
-        	sendNotification("The message couldn't be sent: " + intent.getExtras().toString());
+        	sendNotification("The CCS message couldn't be sent: " + intent.getExtras().toString());
         	SharedPreferences.Editor editor = prefs.edit();
         	editor.remove("actualPlayer");
     		editor.remove("board");
     		editor.remove("turn");
     		editor.commit();
     		Intent newIntent = new Intent(NEW_MESSAGE_ACTION);
-        	newIntent.putExtra("","");
+        	newIntent.putExtra(EXTRA_ERRORSENDING,"");
             context.sendBroadcast(newIntent);   
         } else if (GoogleCloudMessaging.MESSAGE_TYPE_DELETED.equals(messageType)) {
             ;
@@ -71,7 +73,9 @@ public class GcmBroadcastReceiver extends BroadcastReceiver {
         	String position,winner;
         	if( intent.getExtras().getString(EXTRA_CANCEL) != null){
         		SharedPreferences.Editor editor = prefs.edit();
-            	editor.remove("actualPlayer");
+        		if(prefs.getString("actualPlayer",null) != null)
+        			editor.putString(EXTRA_CANCEL,prefs.getString("actualPlayer",""));
+        		editor.remove("actualPlayer");
         		editor.remove("board");
         		editor.remove("turn");
         		editor.commit();
@@ -82,9 +86,9 @@ public class GcmBroadcastReceiver extends BroadcastReceiver {
             	editor.remove("actualPlayer");
         		editor.remove("board");
         		editor.remove("turn");
-        		editor.putString("newWinner",winner);
+        		editor.putString(EXTRA_WINNER,winner);
         		editor.commit();
-        		if(!onForeGround) sendNotification("There is a winner!");
+        		if(!onForeGround) sendNotification(winner + " wins!");
         	}
         	else if( (position = intent.getExtras().getString(EXTRA_MOVEMENT)) != null){
         		Board board = new Board(prefs,false,false);
@@ -97,7 +101,7 @@ public class GcmBroadcastReceiver extends BroadcastReceiver {
             		if (prefs.getString("actualPlayer",null) == null){
             			SharedPreferences.Editor editor = prefs.edit();
             	   		editor.putString("actualPlayer", player);
-            	   		editor.putString("newInvitation", "");
+            	   		editor.putString(EXTRA_NEWGAME, "");
             	   		editor.commit();
             			new Board(prefs,true,true);
             			if(!onForeGround) sendNotification("An invitation to play!");
@@ -114,7 +118,7 @@ public class GcmBroadcastReceiver extends BroadcastReceiver {
         setResultCode(Activity.RESULT_OK);
     }
     
-    // Put the GCM message into a notification and post it.
+    //Shows a notification.
     private void sendNotification(String msg) {
         mNotificationManager = (NotificationManager)
                 ctx.getSystemService(Context.NOTIFICATION_SERVICE);
@@ -126,7 +130,7 @@ public class GcmBroadcastReceiver extends BroadcastReceiver {
         
         NotificationCompat.Builder mBuilder =
                 new NotificationCompat.Builder(ctx)
-        .setSmallIcon(R.drawable.icon)
+        .setSmallIcon(R.drawable.ic_launcher)
         .setContentTitle("Connect 4")
         .setStyle(new NotificationCompat.BigTextStyle()
         .bigText(msg))

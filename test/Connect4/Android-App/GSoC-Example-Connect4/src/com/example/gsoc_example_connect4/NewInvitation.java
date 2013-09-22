@@ -7,13 +7,14 @@ import android.content.DialogInterface;
 import android.os.Bundle;
 import android.support.v4.app.DialogFragment;
 
+//Simple message to show a new invitation to play.
 public class NewInvitation extends DialogFragment {
 	MainActivity activityHost;
 	
 	@Override
     public Dialog onCreateDialog(Bundle savedInstanceState) {        
 		AlertDialog.Builder builder = new AlertDialog.Builder(getActivity());
-		builder.setMessage("You received an invation to play against: " + activityHost.getActualPlayer())
+		builder.setMessage("You received an invitation to play against: " + activityHost.getActualPlayer())
     		   .setNegativeButton("Reject"   ,new DialogInterface.OnClickListener() {
     				   public void onClick(DialogInterface dialog, int which) {
     					   activityHost.sendCancel();

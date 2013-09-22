@@ -10,6 +10,7 @@ import android.os.Bundle;
 import android.support.v4.app.DialogFragment;
 import android.widget.ArrayAdapter;
 
+//Simple dialog to select a user to start a new game.
 public class SelectUser extends DialogFragment {
 	MainActivity activityHost;
 	List<String> list;
@@ -25,7 +26,7 @@ public class SelectUser extends DialogFragment {
     		builder.setMessage(R.string.problem_get_users)
     			   .setNegativeButton("Cancel"   ,new DialogInterface.OnClickListener() {
     				   public void onClick(DialogInterface dialog, int which) {
-    					   activityHost.resultChoose(-1);
+    					   ;
     				   }
     			   })
     			   .setPositiveButton("Try again", new DialogInterface.OnClickListener() {

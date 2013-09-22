@@ -4,8 +4,10 @@ import android.os.Bundle;
 import android.preference.PreferenceActivity;
 import com.example.gsoc_example_connect4.R;
 
+//Simple settings class.
 public class SettingsActivity extends PreferenceActivity {
-    @Override
+    
+	@Override
     public void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         addPreferencesFromResource(R.xml.preferences);

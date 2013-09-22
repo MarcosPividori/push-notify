@@ -38,7 +38,7 @@ import android.os.Bundle;
 import android.preference.PreferenceManager;
 import android.util.Log;
 
-//Class used for communicating with the server.
+//Class for communicating with Yesod and CCS servers.
 public final class ServerUtilities {
 
     private static final int MAX_ATTEMPTS = 5;
@@ -48,6 +48,7 @@ public final class ServerUtilities {
     // Tag used on log messages
     static final String TAG = "GSoC-Example-ServerUtilities";
     
+    // Obtains the list of available users from Yesod server.
     static List<String> getUsersList(String user) {
     	ArrayList<String> l = new ArrayList<String>();
     	InputStream is = null;
@@ -80,7 +81,7 @@ public final class ServerUtilities {
         JSONObject jObj = null;
         try {
         	jObj = new JSONObject(json);
-        	JSONArray jarray = jObj.getJSONArray("users");
+        	JSONArray jarray = jObj.getJSONArray("con4");
         	for(int i=0;i < jarray.length();i++){ 
         		if(!user.equals(jarray.getString(i)))
         			l.add(jarray.getString(i));
@@ -91,7 +92,7 @@ public final class ServerUtilities {
     	return l;
     }
     
-    //Register this device in the server.
+    //Register this device on Yesod server.
     static boolean register(final Context context,String regId,String user,String password) {
     	
     	String serverUrl = SERVER_URL + "/fromdevices/register";
@@ -100,11 +101,11 @@ public final class ServerUtilities {
         params.put("regId", regId);
         params.put("user", user);
         params.put("password", password);
+        params.put("isConnect4"," ");
+        params.put("system", "ANDROID");
         long backoff = BACKOFF_MILLI_SECONDS + random.nextInt(1000);
 
-        // Once GCM returns a registration id, we need to register it in the
-        // demo server. As the server might be down, we will retry it a couple
-        // times.
+        // As the server might be down, we will retry it a couple times.
         for (int i = 1; i <= MAX_ATTEMPTS; i++) {
             Log.d(TAG, "Attempt #" + i + " to register");
             try {
@@ -132,10 +133,10 @@ public final class ServerUtilities {
     }
     
 
-    // Send a message to the server.
+    // Sends a message to the server.
     static Boolean sendMsgToServer(final Context context,String regId, String user, String password , String msg1 , String msg2, AtomicInteger msgId) {
     	SharedPreferences sharedPref = PreferenceManager.getDefaultSharedPreferences(context);
-    	Boolean useCCS = sharedPref.getBoolean("pref_useCCS", true);
+    	Boolean useCCS = sharedPref.getBoolean("pref_useCCS", false);// flag to choose between CCS or HTTP Post requests.
     	Log.i(TAG, "sending msg to server");
         String serverUrl = SERVER_URL + "/fromdevices/messages";
         if(useCCS){
@@ -145,6 +146,7 @@ public final class ServerUtilities {
             params.putString("regId", regId);
             params.putString("user",user);
             params.putString("password",password);
+            params.putString("system", "ANDROID");
         	GoogleCloudMessaging gcm= GoogleCloudMessaging.getInstance(context);
         	try {
         		gcm.send(SENDER_ID + "@gcm.googleapis.com", id, 0, params);
@@ -159,15 +161,14 @@ public final class ServerUtilities {
             params.put("regId", regId);
             params.put("user",user);
             params.put("password",password);
+            params.put("system", "ANDROID");
         	long backoff = BACKOFF_MILLI_SECONDS + random.nextInt(1000);
 	        for (int i = 1; i <= 2; i++) {
 	            try {
 	            	post(serverUrl, params);
-	            	//displayMessage(context,"Message successfully sent.");
 	            	return true;
 	            } catch (IOException e) {
 	            	if(i == MAX_ATTEMPTS){
-	            		//displayMessage(context,"The message couldn't be sent.");
 	            		return false;
 	            	}
 	            	try {
@@ -184,7 +185,7 @@ public final class ServerUtilities {
         }
     }
     
-    // Issue a POST request to the server.
+    // Issue a POST request to Yesod server.
     private static void post(String endpoint, Map<String, String> params)
             throws IOException {
         URL url;
@@ -219,31 +220,29 @@ public final class ServerUtilities {
             conn.setUseCaches(false);
             conn.setFixedLengthStreamingMode(bytes.length);
             conn.setRequestMethod("POST");
-            conn.setRequestProperty("Content-Type","application/json");//"application/x-www-form-urlencoded;charset=UTF-8");
-            // post a request.
+            conn.setRequestProperty("Content-Type","application/json");
             
             OutputStream out = conn.getOutputStream();
-            
             out.write(bytes);
-
             out.close();
+
             // handle the response.
             for (int i = 1; i <= MAX_ATTEMPTS; i++) {
-            try
-            {
-            	int status=200;
-            	status = conn.getResponseCode();
-            if (status != 200) {
-              throw new IOException("Post failed with error code " + status);
+            	try
+            	{
+            		int status=200;
+            		status = conn.getResponseCode();
+            		if (status != 200) {
+            			throw new IOException("Post failed with error code " + status);
+            		}
+            		break;
+            	}catch(java.io.EOFException e){}
             }
-            break;
-            }catch(java.io.EOFException e){}
-            }
-            
+
         } finally {
             if (conn != null) {
                 conn.disconnect();
             }
         }
-      }
+    }
 }

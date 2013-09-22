@@ -4,16 +4,18 @@ import java.util.Arrays;
 
 import org.json.JSONArray;
 import org.json.JSONException;
+
 import android.content.SharedPreferences;
 import android.util.Log;
 
+// This class represents game state.
 public class Board {
-	
 	private Integer[] positions;
 	SharedPreferences prefs;
 	int turn= 0;
 	String actualPlayer;
-		
+
+	//Main constructor.
 	public Board(SharedPreferences pref,boolean newgame,boolean firstPlayer){
 		prefs = pref;
 		positions = new Integer[42];
@@ -22,7 +24,8 @@ public class Board {
         else
         	readState();
 	}
-	
+ 
+	//Recovers game state.
 	public void readState(){
 		String gameState= prefs.getString("board",null);
 		turn= prefs.getInt("turn",0);
@@ -102,6 +105,7 @@ public class Board {
 		return false;
 	}
 	
+	//Go back on last movement.
 	public void cancelMovement(int column){
 		if(column > 6 || column <0)
 			return ;
@@ -116,6 +120,7 @@ public class Board {
 		save();
 	}
 	
+	//Saves game state.
 	public void save(){
 		SharedPreferences.Editor editor = prefs.edit();
 		JSONArray json = new JSONArray(Arrays.asList(positions));
