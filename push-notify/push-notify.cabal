@@ -9,10 +9,10 @@ description:         This library offers a simple abstraction for sending notifi
 homepage:            http://gsoc2013cwithmobiledevices.blogspot.com.ar/
 license:             MIT
 license-file:        LICENSE
-author:              Marcos Pividori
-maintainer:          marcos.pividori@gmail.com
+author:              Marcos Pividori, mentored by Michael Snoyman.
+maintainer:          Marcos Pividori <marcos.pividori@gmail.com>
 
-category:            Network
+category:            Network, Cloud, Mobile
 build-type:          Simple
 cabal-version:       >=1.8
 
