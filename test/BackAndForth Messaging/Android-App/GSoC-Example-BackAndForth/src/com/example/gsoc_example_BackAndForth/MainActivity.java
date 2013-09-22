@@ -30,34 +30,27 @@ import static com.example.gsoc_example_BackAndForth.CommonUtilities.displayMessa
 
 public class MainActivity extends Activity {
 
-	public static final String EXTRA_MESSAGE = "message";
-    public static final String PROPERTY_REG_ID = "registration_id";
+	public  static final String EXTRA_MESSAGE = "message";
+    public  static final String PROPERTY_REG_ID = "registration_id";
+    public  static final long REGISTRATION_EXPIRY_TIME_MS = 1000 * 3600 * 24 * 7;
     private static final String PROPERTY_ON_SERVER_EXPIRATION_TIME = "onServerExpirationTimeMs";
-    AtomicInteger msgId = new AtomicInteger();
-    
-    // Default lifespan (7 days) of a reservation until it is considered expired.
-    public static final long REGISTRATION_EXPIRY_TIME_MS = 1000 * 3600 * 24 * 7;
-
-    // Tag used on log messages.
     static final String TAG = "GSoC-Example";
-
+    AtomicInteger msgId = new AtomicInteger();
     TextView mDisplay;
     GoogleCloudMessaging gcm;
-    
     SharedPreferences prefs;
     Context context;
-
     String regid,user,password;
     Boolean registered,onProcessOfRegistration;
     AlertDialog dialog;
 
+    // Creates the initial configuration
     @Override
     public void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
         
-        registerReceiver(mHandleMessageReceiver,
-                new IntentFilter(DISPLAY_MESSAGE_ACTION));
+        registerReceiver(mHandleMessageReceiver, new IntentFilter(DISPLAY_MESSAGE_ACTION));
         
         prefs = getSharedPreferences(MainActivity.class.getSimpleName(),Context.MODE_PRIVATE);
         
@@ -65,7 +58,6 @@ public class MainActivity extends Activity {
         onProcessOfRegistration = prefs.getBoolean("onProcessOfRegistration", false);
         user = prefs.getString("user","");
         password = prefs.getString("password","");
-        
         String historial = prefs.getString("historial","No Messages!\n");
              
         mDisplay = (TextView) findViewById(R.id.display);
@@ -74,6 +66,7 @@ public class MainActivity extends Activity {
         context = getApplicationContext();
         regid = getRegistrationId(context);
         
+        // Checks registration.
         if(!onProcessOfRegistration){
         	SharedPreferences.Editor editor = prefs.edit();
 			editor.putBoolean("onProcessOfRegistration", true);
@@ -129,7 +122,7 @@ public class MainActivity extends Activity {
                 dialog = builder.create();
                 dialog.show();
                 return true;
-                
+            //Go to setting tab, to select CCS or HTTP Post requests.
             case R.id.options_settings:
             	Intent intent = new Intent(this, SettingsActivity.class);
 				startActivity(intent);
@@ -149,13 +142,12 @@ public class MainActivity extends Activity {
     	//Returning from the register activity.
     	if(requestCode == 1000)
     		if(resultCode == RESULT_OK){
-    			user = data.getStringExtra("USER");
+    			user     = data.getStringExtra("USER");
     			password = data.getStringExtra("PASSWORD");
     			SharedPreferences.Editor editor = prefs.edit();
     			editor.putString("user", user);
     			editor.putString("password", password);
     			editor.putBoolean("onProcessOfRegistration", false);
-    			// Commit the edits!
     			editor.commit();
     			sendInfoToServer();
     		}else{
@@ -202,9 +194,9 @@ public class MainActivity extends Activity {
             protected String doInBackground(Void... params) {
                 String msg = "";
                 try {
-                    if (gcm == null) {
+                    if (gcm == null)
                         gcm = GoogleCloudMessaging.getInstance(context);
-                    }
+
                     regid = gcm.register(SENDER_ID);
                     msg = "Device registered:\nRegistration id = " + regid;
                     
@@ -248,7 +240,6 @@ public class MainActivity extends Activity {
     			registered = result;
     			SharedPreferences.Editor editor = prefs.edit();
         	    editor.putBoolean("registered", registered);
-        	    // Commit the edits!
         	    editor.commit();
     	    }
     	}.execute(null,null,null);
@@ -280,6 +271,7 @@ public class MainActivity extends Activity {
         }
     };
     
+    // To send messages to the Yesod server.
     public void sendMessage(View view) {
     	EditText editText = (EditText) findViewById(R.id.edit_message);
     	String message = editText.getText().toString();

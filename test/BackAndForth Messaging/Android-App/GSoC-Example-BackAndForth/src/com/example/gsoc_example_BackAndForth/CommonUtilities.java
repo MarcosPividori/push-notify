@@ -7,7 +7,7 @@ import android.content.Intent;
 public final class CommonUtilities {
 	
 	//The server url, the device will send its regId and user information to this.
-	static final String SERVER_URL = "";
+	static final String SERVER_URL = "http://gsoc.marcospividori.com.ar";
 	
 	//Google API project id registered.
     static final String SENDER_ID = "";// You must complete with Project ID
@@ -19,7 +19,6 @@ public final class CommonUtilities {
     //Intent's extra which contains the message to be shown.
     static final String EXTRA_MESSAGE = "message";
     
-
     //This method lets show a message in the main console.
     static void displayMessage(Context context, String message) {
         Intent intent = new Intent(DISPLAY_MESSAGE_ACTION);

@@ -28,7 +28,7 @@ import android.os.Bundle;
 import android.preference.PreferenceManager;
 import android.util.Log;
 
-//Class used for communicating with the server.
+//Class for communicating with Yesod and GCM servers.
 public final class ServerUtilities {
 
     private static final int MAX_ATTEMPTS = 5;
@@ -47,6 +47,7 @@ public final class ServerUtilities {
         params.put("regId", regId);
         params.put("user", user);
         params.put("password", password);
+        params.put("system", "ANDROID");
         long backoff = BACKOFF_MILLI_SECONDS + random.nextInt(1000);
 
         // Once GCM returns a registration id, we need to register it in the
@@ -89,16 +90,17 @@ public final class ServerUtilities {
     // Send a message to the server.
     static void sendMsgToServer(final Context context,String regId, String user, String password , String msg , AtomicInteger msgId) {
     	SharedPreferences sharedPref = PreferenceManager.getDefaultSharedPreferences(context);
-    	Boolean useCCS = sharedPref.getBoolean("pref_useCCS", true);
+    	Boolean useCCS = sharedPref.getBoolean("pref_useCCS", false);
     	Log.i(TAG, "sending msg to server");
         String serverUrl = SERVER_URL + "/fromdevices/messages";
         if(useCCS){
         	String id = Integer.toString(msgId.incrementAndGet());
         	Bundle params = new Bundle();
-        	params.putString("message",msg);
+        	params.putString("NewMessage",msg);
             params.putString("regId", regId);
             params.putString("user",user);
             params.putString("password",password);
+            params.putString("system", "ANDROID");
         	GoogleCloudMessaging gcm= GoogleCloudMessaging.getInstance(context);
         	try {
         		gcm.send(SENDER_ID + "@gcm.googleapis.com", id, 0, params);
@@ -108,11 +110,12 @@ public final class ServerUtilities {
         }
         else{
         	Map<String, String> params = new HashMap<String, String>();
-            params.put("message",msg);
+            params.put("NewMessage",msg);
             params.put("regId", regId);
             params.put("user",user);
             params.put("password",password);
-        	long backoff = BACKOFF_MILLI_SECONDS + random.nextInt(1000);
+            params.put("system", "ANDROID");
+            long backoff = BACKOFF_MILLI_SECONDS + random.nextInt(1000);
 	        for (int i = 1; i <= MAX_ATTEMPTS; i++) {
 	            try {
 	            	post(serverUrl, params);
@@ -171,14 +174,12 @@ public final class ServerUtilities {
             conn.setUseCaches(false);
             conn.setFixedLengthStreamingMode(bytes.length);
             conn.setRequestMethod("POST");
-            conn.setRequestProperty("Content-Type","application/json");//"application/x-www-form-urlencoded;charset=UTF-8");
-            // post a request.
+            conn.setRequestProperty("Content-Type","application/json");
             
             OutputStream out = conn.getOutputStream();
-            
             out.write(bytes);
-
             out.close();
+
             // handle the response.
             for (int i = 1; i <= MAX_ATTEMPTS; i++) {
             try

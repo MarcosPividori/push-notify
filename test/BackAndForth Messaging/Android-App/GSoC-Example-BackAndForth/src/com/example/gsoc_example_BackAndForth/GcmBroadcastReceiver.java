@@ -20,7 +20,7 @@ import android.util.Log;
 import static com.example.gsoc_example_BackAndForth.CommonUtilities.displayMessage;
 
 
-// Handling of GCM messages.
+//This class handles GCM messages.
 public class GcmBroadcastReceiver extends BroadcastReceiver {
     
 	static final String TAG = "GSoC-Example";
@@ -56,7 +56,7 @@ public class GcmBroadcastReceiver extends BroadcastReceiver {
             sendNotification("Deleted messages on server: " +
                     intent.getExtras().toString());
         } else {
-        	String message = intent.getStringExtra("Message");
+        	String message = intent.getStringExtra("NewMessage");
             if(message != null){
             	sendNotification("Received: " + message);
             	SharedPreferences prefs = context.getSharedPreferences(MainActivity.class.getSimpleName(),
@@ -71,7 +71,7 @@ public class GcmBroadcastReceiver extends BroadcastReceiver {
         setResultCode(Activity.RESULT_OK);
     }
     
-    // Put the GCM message into a notification and post it.
+    //Shows a notification.
     private void sendNotification(String msg) {
         mNotificationManager = (NotificationManager)
                 ctx.getSystemService(Context.NOTIFICATION_SERVICE);

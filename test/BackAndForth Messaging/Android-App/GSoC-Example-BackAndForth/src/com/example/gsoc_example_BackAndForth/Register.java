@@ -12,7 +12,7 @@ import android.widget.EditText;
 import android.widget.TextView;
 import android.content.Intent;
 
-// Activity to register user, password and server_url where the device should register.
+// Activity to register user, password .
 public class Register extends Activity {
 	
 	private String mUser;
