@@ -235,7 +235,9 @@ main = runResourceT . runNoLoggingT $ withSqlitePool "DevicesDateBase.db3" 10 $ 
       ref <- newIORef Nothing
       onlineUsers <- newIORef newWebUsersState
       man <- startPushService $ PushServiceConfig{
-            pushConfig           = def{ gcmConfig  = Just $ Http $ def{apiKey = "api key for connect 4 app"} }
+            pushConfig           = def{ gcmConfig  = Just $ Ccs $ def{
+                                                         apiKey   = "api key for connect 4 app"
+                                                         senderId = "sender id for connect 4 app" } }
         ,   newMessageCallback   = handleNewMessage pool onlineUsers ref
         ,   newDeviceCallback    = handleNewDevice pool
         ,   unRegisteredCallback = handleUnregistered pool
