@@ -1,7 +1,7 @@
 ## Test example for Push Notifications:
 
 This is a simple example of a Yesod server using the PushNotify api,
-(Network.PushNotify) where devices can register to receive messages and
+(Network.PushNotify) where devices can register to receive/send messages and
 users can send messages through the web service. This is composed of:
 
 * a Yesod app for registering the devices and sending push notifications.
@@ -17,12 +17,15 @@ on how it would be to add support for APNS on this Yesod app.
   
   + On an Android device:
      - Go to settings/applications/ allow unknown sources.
-     - In the web browser go to: http://push-notify.yesodweb.com/ and download 
-       the android app from the link at the bottom.
+     - In the web browser go to: http://gsoc.marcospividori.com.ar/apps and download 
+       the android app from the link.
      - Install it, enter a username and a password.
 
-  + If the registration succeded, when you go to: http://push-notify.yesodweb.com/ 
-    you will see your username. And you can start sending notifications through
+  + On a Windows Phone device:
+     - You can download the app from Microsoft Store: [1](http://www.windowsphone.com/es-ar/store/app/gsoc_example/1e4813bf-c72d-4c18-87f8-65a418433b50)
+
+  + If the registration succeded, when you go to: http://gsoc.marcospividori.com.ar 
+    you will see your username. Now, you can start sending/receiving notifications through
     the website.
 
 **Some ScreenShots:**
@@ -76,3 +79,5 @@ Once you have its URI, you can start sending notifications through MPNS Servers.
 
 NOTE: The Windows Phone app is based on some examples provided by Microsoft in the
 Windows Phone developers site.
+
+For more information, you can visit the blog: http://gsoc2013cwithmobiledevices.blogspot.com.ar/
