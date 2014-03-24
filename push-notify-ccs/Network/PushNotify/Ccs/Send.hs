@@ -70,9 +70,11 @@ connectCCS config = do
                        gen
             handshake ctx
             return StreamHandle { streamSend    = \bs -> CE.catch
-                                                    (sendData ctx (BL.fromChunks [bs]) >> return True)
-                                                    (\(_e :: CE.SomeException) -> return False)
-                                , streamReceive = \bs -> recvData ctx
+                                                    (sendData ctx (BL.fromChunks [bs]) >> return (Right ()))
+                                                    (\(_e :: CE.SomeException) -> return $ Left XmppOtherFailure)
+                                , streamReceive = \bs -> CE.catch
+                                                    (recvData ctx >>= return . Right )
+                                                    (\(_e :: CE.SomeException) -> return $ Left XmppOtherFailure)
                                 , streamFlush   = contextFlush ctx
                                 , streamClose   = bye ctx }
     result <- session
