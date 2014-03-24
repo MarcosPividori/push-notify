@@ -13,6 +13,7 @@ import Data.Aeson.Parser                (json)
 import Data.Aeson.Types
 import Data.Conduit                     (($$+-))
 import Data.Conduit.Attoparsec          (sinkParser)
+import Data.Default
 import Data.Map                         (Map,lookup)
 import Data.String
 import Data.Text                        (Text, pack, unpack, empty)
@@ -51,7 +52,7 @@ sendGCM manager cnfg msg = runResourceT $ do
 
 -- 'retry' try numRet attemps to send the messages.
 retry :: (MonadBaseControl IO m,MonadResource m)
-      => Request m -> Manager -> Int -> GCMmessage -> m GCMresult
+      => Request -> Manager -> Int -> GCMmessage -> m GCMresult
 retry req manager numret msg = do
         response <- retrying (retrySettingsGCM{numRetries = limitedRetries numret})
                              ifRetry $ http req manager

@@ -3,7 +3,7 @@
 {-# LANGUAGE OverloadedStrings, FlexibleContexts #-}
 
 -- | This Module define the main function to send Push Notifications through Microsoft Push Notification Service.
-module Network.PushNotify.Mpns.Send (sendMPNS) where
+module Network.PushNotify.Mpns.Send (sendMPNS,newManagerMPNS) where
 
 import Network.PushNotify.Mpns.Constants
 import Network.PushNotify.Mpns.Types
@@ -14,6 +14,7 @@ import Data.Conduit                     (($$+-))
 import Data.List
 import Data.Text                        (Text, pack, unpack, empty)
 import Data.Text.Encoding               (decodeUtf8)
+import Data.Certificate.X509            (X509)
 import Text.XML
 import qualified Control.Exception      as CE
 import qualified Data.HashMap.Strict    as HM
@@ -23,8 +24,35 @@ import Control.Monad.IO.Class           (liftIO)
 import Control.Monad.Trans.Control      (MonadBaseControl)
 import Control.Monad.Trans.Resource     (MonadResource,runResourceT)
 import Control.Retry
+import Network.Connection               (TLSSettings(..))
 import Network.HTTP.Types
+import Network.HTTP.Client              (defaultManagerSettings)
 import Network.HTTP.Conduit
+import Network.TLS
+import Network.TLS.Extra                (ciphersuite_all)
+
+connParams :: X509 -> PrivateKey -> Params
+connParams cert privateKey = defaultParamsClient{
+                     pConnectVersion    = TLS11
+                   , pAllowedVersions   = [TLS10,TLS11,TLS12]
+                   , pCiphers           = ciphersuite_all
+                   , pCertificates      = [(cert , Just privateKey)]
+                   , onCertificatesRecv = const $ return CertificateUsageAccept
+                   , roleParams         = Client $ ClientParams{
+                            clientWantSessionResume    = Nothing
+                          , clientUseMaxFragmentLength = Nothing
+                          , clientUseServerName        = Nothing
+                          , onCertificateRequest       = \x -> return [(cert , Just privateKey)]
+                          }
+                   }
+
+-- | 'newManagerMPNS' creates a new HTTP Conduit Manager to be used to communicate with MPNS servers.
+newManagerMPNS :: MPNSConfig -> IO Manager
+newManagerMPNS cnfg = case useSecure cnfg of
+    False   -> newManager defaultManagerSettings
+    True    -> do
+        let sett = mkManagerSettings (TLSSettings $ connParams (mpnsCertificate cnfg) (mpnsPrivatekey  cnfg)) Nothing
+        newManager sett
 
 retrySettingsMPNS = RetrySettings {
     backoff     = True
@@ -54,9 +82,7 @@ send manager cnfg msg deviceUri = runResourceT $ do
                         False   -> parseUrl $ unpack deviceUri
                         True    -> do
                                      r    <- (parseUrl $ unpack deviceUri)
-                                     return r{
-                                             clientCertificates = [(mpnsCertificate cnfg, Just (mpnsPrivatekey  cnfg))]
-                                         ,   secure             = True }
+                                     return r{ secure = True }
     let valueBS  = renderLBS def $ restXML msg
         interval = case target msg of
                         Tile      -> 1
@@ -87,7 +113,7 @@ send manager cnfg msg deviceUri = runResourceT $ do
 
 -- 'retry' try numRet attemps to send the messages.
 retry :: (MonadBaseControl IO m,MonadResource m)
-      => Request m -> Manager -> Int -> m MPNSinfo
+      => Request -> Manager -> Int -> m MPNSinfo
 retry req manager numret = do
         response <- retrying (retrySettingsMPNS{numRetries = limitedRetries numret}) ifRetry $ http req manager
         responseBody response $$+- return ()

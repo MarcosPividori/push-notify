@@ -11,7 +11,7 @@ main = send def
 
 send :: MPNSmessage -> IO ()
 send msg = withSocketsDo $ do
-           m    <- newManager def
+           m    <- newManagerMPNS def
            res  <- sendMPNS m def msg{
                      deviceURIs = HS.singleton "DeviceUri" -- here you complete with the device URI.
                    , restXML    = parseText_ def "<?xml version=\"1.0\" encoding=\"utf-8\"?> <root> <value1> Hello World!! </value1> </root>"
