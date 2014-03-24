@@ -20,6 +20,7 @@ import Control.Monad
 import Control.Exception                as CE
 import qualified Data.HashMap.Strict    as HM
 import qualified Data.HashSet           as HS
+import Network.HTTP.Client              (defaultManagerSettings)
 import Network.HTTP.Conduit
 import Network.PushNotify.Gcm
 import Network.PushNotify.Apns
@@ -35,7 +36,7 @@ startPushService pConfig = do
                                 _             -> False
                 httpMan <- if gcmflag || isJust (mpnsConfig cnfg)
                              then do
-                                    m <- newManager def
+                                    m <- newManager defaultManagerSettings
                                     return (Just m)
                              else return Nothing
                 apnsMan <- case apnsConfig cnfg of
