@@ -20,7 +20,7 @@ For actualizing the website, I use long pulling, while for the Android app, push
 
 **Some ScreenShots:**
 
-<img src="http://github.com/MarcosPividori/GSoC-Communicating-with-mobile-devices/raw/master/test/Connect4/img1.jpg" width="800px"/>
+<img src="https://github.com/MarcosPividori/GSoC-Communicating-with-mobile-devices/blob/master/test/Connect4/img1.jpg?raw=true" width="800px"/>
 
 
 **About the Yesod App:**
