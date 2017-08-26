@@ -30,13 +30,13 @@ on how it would be to add support for APNS on this Yesod app.
 
 **Some ScreenShots:**
 
-<img src="http://github.com/MarcosPividori/GSoC-Communicating-with-mobile-devices/raw/master/test/BackAndForth%20Messaging/Img1.png" width="800px"/>
+<img src="https://raw.githubusercontent.com/MarcosPividori/GSoC-Communicating-with-mobile-devices/master/test/BackAndForth%20Messaging/Img1.png" width="800px"/>
 
-<img src="http://github.com/MarcosPividori/GSoC-Communicating-with-mobile-devices/raw/master/test/BackAndForth%20Messaging/Img2.png" width="800px"/>
+<img src="https://raw.githubusercontent.com/MarcosPividori/GSoC-Communicating-with-mobile-devices/master/test/BackAndForth%20Messaging/Img2.png" width="800px"/>
 
-<img src="http://github.com/MarcosPividori/GSoC-Communicating-with-mobile-devices/raw/master/test/BackAndForth%20Messaging/Img3.jpg" width="800px"/>
+<img src="https://github.com/MarcosPividori/GSoC-Communicating-with-mobile-devices/blob/master/test/BackAndForth%20Messaging/Img3.jpg?raw=true" width="800px"/>
 
-<img src="http://github.com/MarcosPividori/GSoC-Communicating-with-mobile-devices/raw/master/test/BackAndForth%20Messaging/Img4.jpg" width="800px"/>
+<img src="https://raw.githubusercontent.com/MarcosPividori/GSoC-Communicating-with-mobile-devices/master/test/BackAndForth%20Messaging/Img4.jpg" width="800px"/>
 
 
 **About the Yesod App:**
