@@ -1,4 +1,4 @@
-#### 3 Libraries for communicating through Push Notifications: ####
+#### Libraries for communicating through Push Notifications: ####
 
 3 libraries to make it easy to send push notifications to mobile devices. They are available on Hackage:
 
