@@ -1,6 +1,6 @@
 ## API for communicating through MPNS
 
-I developed an API for communicating through MPNS with Windows Phone mobile devices ([1](https://github.com/MarcosPividori/GSoC-Communicating-with-mobile-devices/tree/master/push-notify/Network/PushNotify/Mpns)). For this, I designed a way of building the messages, sending them and handling the result.
+I developed an API for communicating through MPNS with Windows Phone mobile devices ([1](https://github.com/MarcosPividori/push-notify/tree/master/push-notify/Network/PushNotify/Mpns)). For this, I designed a way of building the messages, sending them and handling the result.
 
 To communicate with MPNS servers, I need to send POST requests, so I decided to use Conduit, as I have done with GCM. The MPNS Api looks like this:
 
@@ -34,8 +34,8 @@ Last, for handling the result:
         }
 
 The code is available on GitHub:
- - The MPNS Api : [1]("https://github.com/MarcosPividori/GSoC-Communicating-with-mobile-devices/tree/master/push-notify/Network/PushNotify/Mpns")
- - Test example for MPNS: [2]("https://github.com/MarcosPividori/GSoC-Communicating-with-mobile-devices/tree/master/push-notify/test")
+ - The MPNS Api : [1]("https://github.com/MarcosPividori/push-notify/tree/master/push-notify/Network/PushNotify/Mpns")
+ - Test example for MPNS: [2]("https://github.com/MarcosPividori/push-notify/tree/master/push-notify/test")
 
 For more information about:
  - The MPNS Service:

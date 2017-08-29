@@ -11,4 +11,4 @@ To show a simple usage of this API for GCM (Network.PushNotify.Gcm), I developed
 
 + an Android app for registering on GCM and receiving the notifications.
 
-It is available on: [1](https://github.com/MarcosPividori/GSoC-Communicating-with-mobile-devices/tree/master/push-notify/test)
+It is available on: [1](https://github.com/MarcosPividori/push-notify/tree/master/push-notify/test)

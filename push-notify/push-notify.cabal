@@ -5,8 +5,8 @@ description:         This library offers a simple abstraction for sending notifi
                      .
                      For more information and test examples: <http://gsoc2013cwithmobiledevices.blogspot.com.ar/>
                      .
-                     GitHub repository: <https://github.com/MarcosPividori/GSoC-Communicating-with-mobile-devices>
-homepage:            http://gsoc2013cwithmobiledevices.blogspot.com.ar/
+                     GitHub repository: <https://github.com/MarcosPividori/push-notify>
+homepage:            http://gsoc2013cwithmobiledevices.blogspot.com.ar
 license:             MIT
 license-file:        LICENSE
 author:              Marcos Pividori, mentored by Michael Snoyman.
@@ -65,4 +65,4 @@ library
 
 source-repository head
   type:     git
-  location: https://github.com/MarcosPividori/GSoC-Communicating-with-mobile-devices.git
+  location: https://github.com/MarcosPividori/push-notify.git

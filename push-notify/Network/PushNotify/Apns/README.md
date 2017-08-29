@@ -32,8 +32,8 @@ The time we wait for an error response, after having sent all the messages, can 
 As to use this service, Apple requires you to be an enrolled iOS Developer or something similar, I decided to test the API with a local server. This server was taken from: [3](http://bravenewmethod.wordpress.com/2013/04/20/test-server-for-apple-push-notification-and-feedback-integration/) . It simulates the APNS servers and I modified it to test different common scenes.
 
 The code is available on GitHub:
- - The APNS Api : [1](https://github.com/MarcosPividori/GSoC-Communicating-with-mobile-devices/tree/master/push-notify/Network/PushNotify/Apns)
- - Test example for APNS: [2](https://github.com/MarcosPividori/GSoC-Communicating-with-mobile-devices/tree/master/push-notify/test/testAPNS)
+ - The APNS Api : [1](https://github.com/MarcosPividori/push-notify/tree/master/push-notify/Network/PushNotify/Apns)
+ - Test example for APNS: [2](https://github.com/MarcosPividori/push-notify/tree/master/push-notify/test/testAPNS)
 
 For more information about:
  - The APNS Service: [4](http://developer.apple.com/library/ios/#documentation/NetworkingInternet/Conceptual/RemoteNotificationsPG/Chapters/ApplePushService.html#//apple_ref/doc/uid/TP40008194-CH100-SW9)
